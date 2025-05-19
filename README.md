@@ -6,7 +6,7 @@ Ce projet vise à créer un portfolio professionnel pour mettre en valeur les pr
 
 ---
 
-## Membres du groupe
+## Membres du groupe 
 
 - [Candille Thomas]
 - [Garnier Quentin]
