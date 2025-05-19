@@ -18,8 +18,8 @@ Ce projet vise à créer un portfolio professionnel pour mettre en valeur les pr
 ## Technologies utilisées
 
 - **API** : API Platform (Symfony ou Laravel)
-- **Frontend** : [Votre choix, ex: React, Vue.js, Angular, etc.]
-- **Base de données** : [Votre choix, ex: MySQL, PostgreSQL, MongoDB, etc.]
+- **Frontend** : Next.JS
+- **Base de données** : PostgreSQL
 
 ---
 
@@ -53,8 +53,8 @@ Ce projet vise à créer un portfolio professionnel pour mettre en valeur les pr
 
 1. **Cloner le repository**
     ```
-    git clone [URL_DU_REPO]
-    cd [NOM_DU_REPO]
+    git clone https://github.com/ThomasCandille/PortFolio_SchoolWork
+    cd PortFolio_SchoolWork
     ```
 
 2. **Configurer l'API**
