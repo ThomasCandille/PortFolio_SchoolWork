@@ -10,7 +10,7 @@ Ce projet vise à créer un portfolio professionnel pour mettre en valeur les pr
 
 - [Candille Thomas]
 - [Garnier Quentin]
-- [Letard Pierrick]
+- [Letard Pierric]
 - [Moccand-J Michel (BOMBACLAAAT)](https://github.com/Kan-A-Pesh)
 
 ---
