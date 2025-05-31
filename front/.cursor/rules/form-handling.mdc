@@ -1,0 +1,52 @@
+---
+description: Helps create forms with React Hook Form + Zod validation. Covers contact forms, admin forms, GDPR compliance, and accessibility standards.
+globs:
+alwaysApply: false
+---
+# Form Handling Standards
+
+## React Hook Form Implementation
+- Use React Hook Form for all forms to minimize re-renders
+- Implement uncontrolled components for better performance
+- Use `useForm` hook with TypeScript generics for type safety
+- Leverage `register` function for input registration
+- Use `handleSubmit` for form submission with built-in validation
+
+## Zod Schema Validation
+- Define Zod schemas for all form inputs
+- Use `zodResolver` to integrate with React Hook Form
+- Create reusable schema definitions for common patterns
+- Implement custom error messages in schemas
+- Export TypeScript types from Zod schemas using `z.infer<>`
+
+## Form Structure Patterns
+```typescript
+const schema = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(8, "Password must be at least 8 characters")
+});
+
+type FormData = z.infer<typeof schema>;
+
+const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  resolver: zodResolver(schema)
+});
+```
+
+## Error Handling
+- Display field-level errors using `errors` from formState
+- Implement loading states with `isSubmitting`
+- Use toast notifications for submission success/failure
+- Handle server-side validation errors appropriately
+
+## Security & GDPR
+- Implement GDPR consent checkboxes where required
+- Add reCAPTCHA for contact forms and sensitive operations
+- Validate all inputs on both client and server side
+- Use CSRF protection for state-changing operations
+
+## Accessibility
+- Use proper ARIA labels and descriptions
+- Implement keyboard navigation support
+- Ensure form validation messages are announced to screen readers
+- Use semantic HTML form elements

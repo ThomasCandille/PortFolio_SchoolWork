@@ -1,0 +1,55 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# UI/UX Design Patterns
+
+## Design System
+- Use consistent spacing scale (4px, 8px, 16px, 24px, 32px, 48px)
+- Implement consistent color palette for different states
+- Use consistent typography scale and font weights
+- Maintain consistent border radius and shadow values
+
+## Component Patterns
+- Create reusable components for common UI patterns
+- Use compound component patterns for complex components
+- Implement consistent loading states (skeletons, spinners)
+- Use consistent error and success message patterns
+
+## Layout Principles
+- Use CSS Grid and Flexbox for layouts
+- Implement mobile-first responsive design
+- Use consistent container max-widths and padding
+- Maintain proper content hierarchy with headings
+
+## Interactive Elements
+- Implement consistent hover, focus, and active states
+- Use proper cursor styles (pointer, not-allowed, etc.)
+- Add loading states for all interactive elements
+- Implement proper disabled states for forms and buttons
+
+## Navigation Patterns
+- Use consistent navigation structure across pages
+- Implement breadcrumbs for deep navigation
+- Use clear active states for navigation items
+- Ensure keyboard navigation works properly
+
+## Feedback & Notifications
+- Use toast notifications for temporary feedback
+- Implement proper success/error message patterns
+- Use modals sparingly and with proper escape routes
+- Provide clear confirmation for destructive actions
+
+## Accessibility Standards
+- Maintain color contrast ratios (WCAG AA compliance)
+- Use semantic HTML elements appropriately
+- Implement proper ARIA labels and descriptions
+- Ensure keyboard navigation for all interactive elements
+- Test with screen readers regularly
+
+## Performance Considerations
+- Lazy load images and heavy components
+- Use proper image optimization (WebP, sizing)
+- Implement virtual scrolling for large lists
+- Minimize layout shifts with proper placeholder content

@@ -1,0 +1,38 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Next.js & React Development Standards
+
+## Component Structure
+- Use functional components with TypeScript
+- Prefer React Server Components (RSC) over client components
+- Minimize use of 'use client', useEffect, and setState
+- Use descriptive variable names with auxiliary verbs (isLoading, hasError)
+- Structure files: exported components, subcomponents, helpers, static content, types
+
+## File Organization
+- Use lowercase with dashes for directories (e.g., `components/auth-wizard`)
+- Group related components in feature-based directories
+- Keep component files focused and under 200 lines
+- Export components as named exports, not default exports
+
+## Performance Optimization
+- Implement dynamic imports for code splitting
+- Use Next.js Image component with WebP format
+- Include size data and implement lazy loading for images
+- Favor SSR and SSG over client-side rendering
+
+## Code Style
+- Write concise, technical TypeScript code
+- Use functional and declarative programming patterns
+- Favor iteration and modularization over code duplication
+- Implement early returns for error conditions
+- Use guard clauses for preconditions and invalid states
+
+## Error Handling
+- Prioritize error handling and edge cases
+- Use custom error types for consistent error handling
+- Implement proper loading and error states
+- Handle async operations with proper error boundaries
