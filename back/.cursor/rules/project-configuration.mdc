@@ -1,0 +1,668 @@
+---
+description: Configuration guidelines and development workflow for the Portfolio API Platform project.
+globs:
+alwaysApply: false
+---
+# Portfolio Project Configuration and Workflow
+
+## Description
+This rule provides comprehensive configuration guidelines and development workflow for the Portfolio API Platform project. It covers everything from initial setup to deployment, ensuring consistent development practices and optimal project structure.
+
+## Understanding the Portfolio Project Architecture
+
+**Project Overview:**
+This is a full-stack portfolio management system built with:
+- **Backend**: Symfony 6+ with API Platform for REST API
+- **Database**: MySQL/PostgreSQL for data persistence
+- **Authentication**: JWT tokens for secure API access
+- **Frontend**: React/Next.js for user interfaces
+- **Admin Panel**: For content management and analytics
+
+**Key Components:**
+- **Public API**: Showcase projects, students, and technologies
+- **Admin API**: Manage content and view analytics
+- **Authentication System**: Secure login for administrators
+- **Contact System**: Handle inquiries with GDPR compliance
+- **File Management**: Image uploads and media handling
+
+## Project Setup Commands Explained
+
+### Initial Setup Process
+```bash
+# Navigate to backend directory
+cd back/
+
+# Install PHP dependencies via Composer
+# This downloads all required packages listed in composer.json
+composer install
+
+# Expected packages installed:
+# - API Platform (REST API framework)
+# - Symfony (PHP framework)
+# - Doctrine ORM (database abstraction)
+# - JWT Authentication Bundle (secure authentication)
+# - Maker Bundle (code generation)
+# - Validation Component (data validation)
+
+# Configure database connection in .env file
+# Create .env.local for local environment overrides
+cp .env .env.local
+```
+
+**Environment Configuration:**
+```bash
+# Edit .env.local with your database credentials
+# DATABASE_URL="mysql://username:password@127.0.0.1:3306/portfolio_db"
+
+# For MySQL
+DATABASE_URL="mysql://root:password@127.0.0.1:3306/portfolio_db"
+
+# For PostgreSQL
+DATABASE_URL="postgresql://postgres:password@127.0.0.1:5432/portfolio_db"
+
+# For SQLite (development only)
+DATABASE_URL="sqlite:///%kernel.project_dir%/var/data.db"
+```
+
+### Database Setup
+```bash
+# Create the database (run this only once)
+php bin/console doctrine:database:create
+
+# This command:
+# - Connects to your database server
+# - Creates a new database with the name specified in DATABASE_URL
+# - Reports success or failure with helpful error messages
+
+# Generate initial migration (after creating your first entities)
+php bin/console make:migration
+
+# This creates a new migration file in migrations/ directory
+# The migration contains SQL commands to create your database schema
+
+# Apply migrations to create database tables
+php bin/console doctrine:migrations:migrate
+
+# This command:
+# - Executes all pending migrations
+# - Updates your database schema
+# - Records which migrations have been applied
+```
+
+### JWT Authentication Setup
+```bash
+# Generate JWT public/private key pair for token signing
+php bin/console lexik:jwt:generate-keypair
+
+# This creates:
+# - config/jwt/private.pem (signs JWT tokens)
+# - config/jwt/public.pem (verifies JWT tokens)
+# - Sets appropriate file permissions for security
+
+# The passphrase is stored in .env:
+# JWT_PASSPHRASE=your_secure_passphrase_here
+```
+
+**Security Note**: These keys are critical for JWT security. Keep them secret and use different keys for different environments.
+
+### Development Server
+```bash
+# Start Symfony development server (recommended)
+symfony server:start -d
+
+# Alternative: Use PHP built-in server
+php -S localhost:8000 -t public/
+
+# The -d flag runs the server in daemon mode (background)
+# Access your API at: http://localhost:8000/api
+# View API documentation at: http://localhost:8000/api/docs
+```
+
+## Development Workflow Explained
+
+### Entity-First Development Process
+```bash
+# 1. Create new entity with interactive wizard
+php bin/console make:entity EntityName
+
+# The wizard will ask for:
+# - Property names (fields)
+# - Property types (string, integer, datetime, etc.)
+# - Property constraints (length, nullable, etc.)
+# - Relationships to other entities
+
+# Example interaction:
+# New property name: title
+# Field type: string
+# Field length: 255
+# Can this field be null in the database: no
+```
+
+### Migration Workflow
+```bash
+# 2. Generate migration after entity changes
+php bin/console make:migration
+
+# This analyzes differences between:
+# - Current entity definitions
+# - Existing database schema
+# - Generates SQL to sync them
+
+# 3. Review the generated migration file
+# Location: migrations/VersionYYYYMMDDHHMMSS.php
+# Always review before applying!
+
+# 4. Apply migration to database
+php bin/console doctrine:migrations:migrate
+
+# For development, you can also use:
+php bin/console doctrine:schema:update --force
+# Warning: Only use schema:update in development!
+```
+
+### API Testing Workflow
+```bash
+# 5. Test your new API endpoints
+# View available endpoints:
+curl http://localhost:8000/api
+
+# Test entity listing:
+curl http://localhost:8000/api/projects
+
+# Test entity creation (requires authentication):
+curl -X POST http://localhost:8000/api/admin/projects \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -d '{"title": "Test Project", "description": "Test Description"}'
+```
+
+## Environment Configuration Deep Dive
+
+### Environment Files Structure
+```
+back/
+├── .env                    # Default values and documentation
+├── .env.local             # Local overrides (git-ignored)
+├── .env.test              # Test environment specific values
+└── .env.production        # Production values (deployed separately)
+```
+
+### Required Environment Variables
+```bash
+# .env.local configuration template
+
+###> symfony/framework-bundle ###
+APP_ENV=dev                                    # Environment: dev, test, prod
+APP_SECRET=your-app-secret-here               # Used for CSRF tokens, session encryption
+###< symfony/framework-bundle ###
+
+###> doctrine/doctrine-bundle ###
+# Database connection for development
+DATABASE_URL="mysql://portfolio_user:secure_password@127.0.0.1:3306/portfolio_dev"
+###< doctrine/doctrine-bundle ###
+
+###> lexik/jwt-authentication-bundle ###
+JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
+JWT_PUBLIC_KEY=%kernel.project_dir%/config/jwt/public.pem
+JWT_PASSPHRASE=your-very-secure-passphrase-here
+###< lexik/jwt-authentication-bundle ###
+
+###> nelmio/cors-bundle ###
+CORS_ALLOW_ORIGIN='^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'  # Development CORS
+###< nelmio/cors-bundle ###
+
+# Custom application variables
+ADMIN_EMAIL=admin@yourportfolio.com           # Default admin user email
+CONTACT_EMAIL=contact@yourportfolio.com       # Where contact forms are sent
+UPLOAD_PATH=public/uploads                    # Image upload directory
+```
+
+**Environment Best Practices:**
+- Never commit `.env.local` to version control
+- Use strong, unique secrets for each environment
+- Document all required variables in `.env`
+- Use different database names for different environments
+
+## Database Management Commands
+
+### Useful Doctrine Commands
+```bash
+# Database information and debugging
+php bin/console doctrine:database:create        # Create database
+php bin/console doctrine:database:drop --force  # Delete database (careful!)
+php bin/console doctrine:schema:validate        # Check schema validity
+
+# Migration management
+php bin/console doctrine:migrations:status      # Show migration status
+php bin/console doctrine:migrations:list        # List all migrations
+php bin/console doctrine:migrations:migrate prev # Rollback to previous migration
+
+# Entity and repository generation
+php bin/console make:entity                     # Create/modify entity
+php bin/console make:repository                 # Create custom repository
+
+# Data management
+php bin/console doctrine:fixtures:load          # Load test data (if fixtures installed)
+php bin/console app:create-admin-user          # Custom command to create admin user
+```
+
+### Sample Admin User Creation Command
+```php
+<?php
+// src/Command/CreateAdminUserCommand.php
+
+namespace App\Command;
+
+use App\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\Question;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
+#[AsCommand(
+    name: 'app:create-admin-user',
+    description: 'Create an admin user for the portfolio system'
+)]
+class CreateAdminUserCommand extends Command
+{
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private UserPasswordHasherInterface $passwordHasher
+    ) {
+        parent::__construct();
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $helper = $this->getHelper('question');
+
+        // Ask for admin email
+        $emailQuestion = new Question('Admin email: ');
+        $email = $helper->ask($input, $output, $emailQuestion);
+
+        // Ask for password (hidden input)
+        $passwordQuestion = new Question('Admin password: ');
+        $passwordQuestion->setHidden(true);
+        $password = $helper->ask($input, $output, $passwordQuestion);
+
+        // Create admin user
+        $admin = new User();
+        $admin->setEmail($email);
+        $admin->setRoles(['ROLE_ADMIN']);
+
+        $hashedPassword = $this->passwordHasher->hashPassword($admin, $password);
+        $admin->setPassword($hashedPassword);
+
+        $this->entityManager->persist($admin);
+        $this->entityManager->flush();
+
+        $output->writeln('<info>Admin user created successfully!</info>');
+        return Command::SUCCESS;
+    }
+}
+```
+
+**Usage:**
+```bash
+php bin/console app:create-admin-user
+# Follow prompts to create admin user
+```
+
+## API Documentation and Testing
+
+### Built-in API Documentation
+```bash
+# Access API documentation (automatically generated)
+# Development: http://localhost:8000/api/docs
+# This shows:
+# - All available endpoints
+# - Request/response schemas
+# - Authentication requirements
+# - Interactive testing interface
+```
+
+### Testing with cURL Examples
+```bash
+# 1. Test public endpoints (no authentication required)
+# Get all published projects
+curl -X GET "http://localhost:8000/api/projects" \
+     -H "Accept: application/json"
+
+# Get specific project
+curl -X GET "http://localhost:8000/api/projects/1" \
+     -H "Accept: application/json"
+
+# Submit contact form
+curl -X POST "http://localhost:8000/api/contact/admissions" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "firstName": "John",
+       "lastName": "Doe",
+       "email": "john@example.com",
+       "message": "Interested in the program",
+       "gdprConsent": true
+     }'
+
+# 2. Authentication workflow
+# Login to get JWT token
+curl -X POST "http://localhost:8000/api/auth/login" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "admin@example.com",
+       "password": "admin123"
+     }'
+
+# Expected response:
+# {
+#   "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+#   "user": {
+#     "id": 1,
+#     "email": "admin@example.com",
+#     "roles": ["ROLE_USER", "ROLE_ADMIN"]
+#   }
+# }
+
+# 3. Authenticated requests (use token from login response)
+export JWT_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+
+# Get all projects (admin view - includes drafts)
+curl -X GET "http://localhost:8000/api/admin/projects" \
+     -H "Authorization: Bearer $JWT_TOKEN" \
+     -H "Accept: application/json"
+
+# Create new project
+curl -X POST "http://localhost:8000/api/admin/projects" \
+     -H "Authorization: Bearer $JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "title": "New Portfolio Project",
+       "shortDescription": "A brief description",
+       "description": "Full project description",
+       "year": "2024",
+       "status": "draft"
+     }'
+
+# Update project status
+curl -X PATCH "http://localhost:8000/api/admin/projects/1/status" \
+     -H "Authorization: Bearer $JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"status": "published"}'
+```
+
+## Code Quality and Development Tools
+
+### Code Generation Tools
+```bash
+# Generate various Symfony components
+php bin/console make:controller        # Create controller class
+php bin/console make:form             # Create form class
+php bin/console make:validator        # Create custom validator
+php bin/console make:command          # Create console command
+php bin/console make:subscriber       # Create event subscriber
+php bin/console make:test             # Create test class
+
+# API Platform specific
+php bin/console make:api-resource     # Convert entity to API resource
+php bin/console make:state-processor  # Create custom state processor
+php bin/console make:state-provider   # Create custom state provider
+```
+
+### Debugging and Profiler
+```bash
+# Clear cache when needed
+php bin/console cache:clear
+
+# Debug routes
+php bin/console debug:router          # Show all routes
+php bin/console debug:router api      # Show routes matching 'api'
+
+# Debug services
+php bin/console debug:container       # Show all services
+php bin/console debug:autowiring      # Show autowiring info
+
+# Debug configuration
+php bin/console debug:config          # Show configuration
+php bin/console debug:config doctrine # Show Doctrine configuration
+```
+
+**Symfony Profiler**: Available at `http://localhost:8000/_profiler` in development mode
+- Shows detailed request information
+- Database queries and performance
+- Security information
+- Form validation errors
+
+## File Upload and Media Management
+
+### Image Upload Configuration
+```yaml
+# config/services.yaml
+parameters:
+    app.upload_directory: '%kernel.project_dir%/public/uploads'
+    app.max_upload_size: '5M'
+    app.allowed_extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp']
+
+services:
+    App\Service\FileUploadService:
+        arguments:
+            $uploadDirectory: '%app.upload_directory%'
+            $maxUploadSize: '%app.max_upload_size%'
+            $allowedExtensions: '%app.allowed_extensions%'
+```
+
+### Sample File Upload Service
+```php
+<?php
+
+namespace App\Service;
+
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\String\Slugger\SluggerInterface;
+
+class FileUploadService
+{
+    public function __construct(
+        private string $uploadDirectory,
+        private string $maxUploadSize,
+        private array $allowedExtensions,
+        private SluggerInterface $slugger
+    ) {}
+
+    public function upload(UploadedFile $file, string $subdirectory = ''): string
+    {
+        // Validate file
+        $this->validateUpload($file);
+
+        // Generate safe filename
+        $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $safeFilename = $this->slugger->slug($originalFilename);
+        $fileName = $safeFilename . '-' . uniqid() . '.' . $file->guessExtension();
+
+        // Create subdirectory if needed
+        $targetDirectory = $this->uploadDirectory . '/' . $subdirectory;
+        if (!is_dir($targetDirectory)) {
+            mkdir($targetDirectory, 0755, true);
+        }
+
+        // Move file to target directory
+        $file->move($targetDirectory, $fileName);
+
+        // Return relative path for database storage
+        return ($subdirectory ? $subdirectory . '/' : '') . $fileName;
+    }
+
+    private function validateUpload(UploadedFile $file): void
+    {
+        // Validate file extension
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, $this->allowedExtensions)) {
+            throw new \InvalidArgumentException(
+                sprintf('File extension "%s" is not allowed', $extension)
+            );
+        }
+
+        // Validate file size
+        $maxSizeBytes = $this->convertToBytes($this->maxUploadSize);
+        if ($file->getSize() > $maxSizeBytes) {
+            throw new \InvalidArgumentException(
+                sprintf('File size exceeds maximum allowed size of %s', $this->maxUploadSize)
+            );
+        }
+    }
+
+    private function convertToBytes(string $size): int
+    {
+        $size = strtoupper($size);
+        $bytes = intval($size);
+
+        if (str_contains($size, 'K')) {
+            $bytes *= 1024;
+        } elseif (str_contains($size, 'M')) {
+            $bytes *= 1024 * 1024;
+        } elseif (str_contains($size, 'G')) {
+            $bytes *= 1024 * 1024 * 1024;
+        }
+
+        return $bytes;
+    }
+}
+```
+
+## Production Deployment Checklist
+
+### Pre-Deployment Configuration
+```bash
+# 1. Set production environment
+APP_ENV=prod
+APP_DEBUG=false
+
+# 2. Generate application secret (unique for production)
+APP_SECRET=$(openssl rand -hex 32)
+
+# 3. Configure production database
+DATABASE_URL="mysql://prod_user:secure_password@db_host:3306/portfolio_prod"
+
+# 4. Set CORS for your domain
+CORS_ALLOW_ORIGIN='^https://yourportfolio\.com$'
+
+# 5. Configure email for contact forms
+MAILER_DSN=smtp://user:pass@smtp.example.com:587
+```
+
+### Deployment Commands
+```bash
+# Install production dependencies (no dev packages)
+composer install --no-dev --optimize-autoloader
+
+# Clear and warm up cache for production
+php bin/console cache:clear --env=prod
+php bin/console cache:warmup --env=prod
+
+# Run database migrations
+php bin/console doctrine:migrations:migrate --no-interaction
+
+# Create admin user
+php bin/console app:create-admin-user
+
+# Set proper file permissions
+chown -R www-data:www-data var/cache var/log
+chmod -R 755 var/cache var/log public/uploads
+```
+
+### Performance Optimizations
+```bash
+# Enable OPcache in php.ini
+opcache.enable=1
+opcache.enable_cli=1
+opcache.memory_consumption=128
+opcache.max_accelerated_files=4000
+opcache.revalidate_freq=60
+
+# Configure application for production performance
+php bin/console cache:clear --env=prod --no-debug
+php bin/console assets:install --env=prod
+```
+
+## Troubleshooting Common Issues
+
+### Database Connection Issues
+```bash
+# Test database connection
+php bin/console doctrine:schema:validate
+
+# Common issues and solutions:
+# 1. "Connection refused" - Check if database server is running
+# 2. "Access denied" - Verify username/password in DATABASE_URL
+# 3. "Database does not exist" - Run doctrine:database:create
+# 4. "Table doesn't exist" - Run doctrine:migrations:migrate
+```
+
+### JWT Authentication Issues
+```bash
+# Common JWT problems:
+# 1. "Unable to load key" - Check file permissions on JWT keys
+chmod 644 config/jwt/private.pem config/jwt/public.pem
+
+# 2. "Invalid signature" - Verify JWT_PASSPHRASE matches key generation
+# 3. "Token expired" - Check token_ttl configuration
+
+# Regenerate JWT keys if needed
+rm config/jwt/*.pem
+php bin/console lexik:jwt:generate-keypair
+```
+
+### API Documentation Not Loading
+```bash
+# If /api/docs returns 404:
+# 1. Check if API Platform is properly installed
+composer show api-platform/core
+
+# 2. Verify routes are loaded
+php bin/console debug:router | grep api
+
+# 3. Clear cache
+php bin/console cache:clear
+```
+
+### Performance Issues
+```bash
+# Check for slow queries
+php bin/console doctrine:query:sql "SHOW PROCESSLIST"
+
+# Profile API endpoints
+# Add ?_profile=1 to any API request for profiling data
+
+# Monitor log files
+tail -f var/log/dev.log
+tail -f var/log/prod.log
+```
+
+## Development Best Practices Summary
+
+### Code Organization
+- **Entities**: Keep business logic in entity methods
+- **Repositories**: Complex queries and data retrieval
+- **Services**: Business logic that spans multiple entities
+- **Controllers**: Only for custom endpoints (API Platform handles most)
+- **Processors**: Custom logic for create/update operations
+- **Providers**: Custom logic for data retrieval and filtering
+
+### Security Best Practices
+- Always use parameterized queries (Doctrine ORM handles this)
+- Validate all input with Symfony validation constraints
+- Use serialization groups to control data exposure
+- Implement proper access control on all endpoints
+- Keep JWT keys secure and rotate them periodically
+- Log security events for monitoring
+
+### Performance Best Practices
+- Use database indexes on frequently queried fields
+- Implement proper pagination for large datasets
+- Use serialization groups to limit data transfer
+- Cache expensive operations where appropriate
+- Monitor and optimize slow database queries
+- Use HTTP caching headers for static content
+
+This comprehensive guide provides everything needed to develop, test, and deploy your portfolio API Platform project successfully.

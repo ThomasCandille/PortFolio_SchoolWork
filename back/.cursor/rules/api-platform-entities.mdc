@@ -1,0 +1,425 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# API Platform Entity Creation and Configuration
+
+## Description
+This rule provides comprehensive guidelines for creating and configuring API Platform entities in your Symfony portfolio project. It covers everything from basic entity generation to advanced relationship mapping and validation.
+
+## Understanding API Platform Entities
+
+**What is an API Platform Entity?**
+An API Platform entity is a regular Doctrine entity that has been enhanced with the `#[ApiResource]` attribute. This attribute automatically generates REST API endpoints for your entity, handling serialization, validation, and HTTP operations.
+
+**Key Concepts:**
+- **Entity**: A PHP class that represents a database table
+- **API Resource**: An entity exposed through REST API endpoints
+- **Operations**: HTTP methods (GET, POST, PUT, PATCH, DELETE) available for the entity
+- **Serialization Groups**: Control which fields are exposed in API responses
+- **Validation**: Ensure data integrity before saving to database
+
+## Entity Creation Workflow
+
+### 1. Generate Entity with Maker Bundle
+```bash
+# This command starts an interactive wizard to create your entity
+php bin/console make:entity EntityName
+
+# The wizard will ask you to:
+# - Define properties (fields) for your entity
+# - Set their types (string, integer, boolean, etc.)
+# - Configure relationships with other entities
+# - Set validation constraints
+```
+
+**What happens behind the scenes:**
+- Creates a new PHP class in `src/Entity/`
+- Generates a repository class in `src/Repository/`
+- Adds Doctrine annotations/attributes for database mapping
+- Sets up getters and setters for each property
+
+### 2. Convert Entity to API Resource
+Add the `#[ApiResource]` attribute to make an entity available as an API:
+
+```php
+<?php
+
+namespace App\Entity;
+
+// Import necessary classes for API Platform
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;           // Single item retrieval (GET /entities/{id})
+use ApiPlatform\Metadata\GetCollection; // List retrieval (GET /entities)
+use ApiPlatform\Metadata\Post;          // Create new item (POST /entities)
+use ApiPlatform\Metadata\Put;           // Full update (PUT /entities/{id})
+use ApiPlatform\Metadata\Patch;         // Partial update (PATCH /entities/{id})
+use ApiPlatform\Metadata\Delete;        // Delete item (DELETE /entities/{id})
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+
+// Doctrine ORM annotation: Links this class to a database table
+#[ORM\Entity(repositoryClass: EntityNameRepository::class)]
+
+// API Platform annotation: Exposes this entity as a REST API resource
+#[ApiResource(
+    operations: [
+        new GetCollection(),  // GET /api/entity_names - List all entities
+        new Get(),           // GET /api/entity_names/{id} - Get single entity
+        new Post(),          // POST /api/entity_names - Create new entity
+        new Put(),           // PUT /api/entity_names/{id} - Update entire entity
+        new Patch(),         // PATCH /api/entity_names/{id} - Partial update
+        new Delete()         // DELETE /api/entity_names/{id} - Delete entity
+    ]
+)]
+class EntityName
+{
+    // Primary key: Auto-incrementing integer ID
+    #[ORM\Id]                    // Marks this as the primary key
+    #[ORM\GeneratedValue]        // Auto-increment the value
+    #[ORM\Column]                // Creates a database column
+    private ?int $id = null;
+
+    // Add your properties here
+    // Each property will become a column in the database table
+}
+```
+
+**Understanding Operations:**
+- **GetCollection**: Returns a paginated list of all entities
+- **Get**: Returns a single entity by its ID
+- **Post**: Creates a new entity from JSON payload
+- **Put**: Replaces an entire entity with new data
+- **Patch**: Updates only specified fields of an entity
+- **Delete**: Removes an entity from the database
+
+### 3. Required Entity Properties for Portfolio Project
+
+#### User Entity
+```php
+// Email field: Used for login and must be unique across all users
+#[ORM\Column(length: 180, unique: true)]  // Max 180 chars, unique constraint
+#[Assert\NotBlank]                        // Cannot be empty
+#[Assert\Email]                           // Must be valid email format
+private ?string $email = null;
+
+// Roles: Array of user roles (ROLE_USER, ROLE_ADMIN, etc.)
+#[ORM\Column]                             // Stored as JSON in database
+private array $roles = [];
+
+// Password: Hashed password (never store plain text!)
+#[ORM\Column]                             // String column for hashed password
+private ?string $password = null;
+```
+
+**Why these validations?**
+- `unique: true` prevents duplicate email addresses
+- `@Assert\Email` ensures valid email format for authentication
+- `roles` array allows flexible permission system
+- Password will be hashed using Symfony's password hasher
+
+#### Project Entity
+```php
+// Project title: Main identifier for the project
+#[ORM\Column(length: 255)]               // Standard title length
+#[Assert\NotBlank]                       // Required field
+private ?string $title = null;
+
+// Full description: Detailed project information
+#[ORM\Column(type: Types::TEXT)]         // TEXT type for long content
+private ?string $description = null;
+
+// Short description: For project cards and previews
+#[ORM\Column(length: 500)]               // Limited length for previews
+private ?string $shortDescription = null;
+
+// Images: Array of image URLs/paths
+#[ORM\Column(type: Types::JSON, nullable: true)]  // JSON array, optional
+private ?array $images = [];
+
+// Main image: Primary project image for thumbnails
+#[ORM\Column(length: 255, nullable: true)]        // Optional main image
+private ?string $mainImage = null;
+
+// Academic year: Which year this project was created
+#[ORM\Column(length: 50)]                         // Year as string (e.g., "2024")
+private ?string $year = null;
+
+// Status: Publication status (draft, published, hidden)
+#[ORM\Column(length: 20, options: ['default' => 'draft'])]  // Default to draft
+private ?string $status = 'draft';
+
+// Timestamps: Track when entity was created/modified
+#[ORM\Column(nullable: true)]                     // Auto-set on creation
+private ?\DateTimeImmutable $createdAt = null;
+
+#[ORM\Column(nullable: true)]                     // Auto-set on updates
+private ?\DateTimeImmutable $updatedAt = null;
+```
+
+**Field Explanations:**
+- `Types::TEXT` vs `length: 255`: TEXT for long content, VARCHAR for shorter strings
+- `nullable: true`: Field is optional, can be NULL in database
+- `options: ['default' => 'draft']`: Sets database default value
+- `DateTimeImmutable`: Immutable date objects prevent accidental modification
+
+#### Student Entity
+```php
+// Student name: Full name for display
+#[ORM\Column(length: 255)]               // Standard name length
+#[Assert\NotBlank]                       // Required field
+private ?string $name = null;
+
+// Email: Contact email for the student
+#[ORM\Column(length: 180)]               // Standard email length
+#[Assert\Email]                          // Must be valid email
+private ?string $email = null;
+
+// Academic year: Which class/year the student is in
+#[ORM\Column(length: 50)]                // Year as string
+private ?string $year = null;
+
+// Biography: Optional description of the student
+#[ORM\Column(type: Types::TEXT, nullable: true)]  // Long text, optional
+private ?string $bio = null;
+```
+
+#### Technology Entity
+```php
+// Technology name: Name of the technology (React, PHP, etc.)
+#[ORM\Column(length: 100)]               // Technology names are typically short
+#[Assert\NotBlank]                       // Required field
+private ?string $name = null;
+
+// Category: Type of technology (Frontend, Backend, Database, etc.)
+#[ORM\Column(length: 100)]               // Category classification
+private ?string $category = null;
+
+// Icon: Path or URL to technology icon
+#[ORM\Column(length: 255, nullable: true)]        // Optional icon path
+private ?string $icon = null;
+```
+
+#### ContactRequest Entity
+```php
+// Personal information for contact requests
+#[ORM\Column(length: 100)]               // Standard name length
+#[Assert\NotBlank]                       // Required for contact
+private ?string $firstName = null;
+
+#[ORM\Column(length: 100)]
+#[Assert\NotBlank]
+private ?string $lastName = null;
+
+// Contact email: Where to respond to the inquiry
+#[ORM\Column(length: 180)]
+#[Assert\NotBlank]                       // Must provide contact method
+#[Assert\Email]                          // Must be valid for response
+private ?string $email = null;
+
+// Optional phone number
+#[ORM\Column(length: 20, nullable: true)]         // Optional contact method
+private ?string $phone = null;
+
+// Inquiry message: The actual inquiry content
+#[ORM\Column(type: Types::TEXT)]         // Long text for detailed messages
+#[Assert\NotBlank]                       // Required - purpose of contact
+private ?string $message = null;
+
+// Program interest: Which program they're interested in
+#[ORM\Column(length: 100, nullable: true)]        // Optional field
+private ?string $interestedProgram = null;
+
+// GDPR compliance: Legal requirement for data processing
+#[ORM\Column]
+#[Assert\IsTrue(message: 'You must accept the GDPR terms.')]  // Legal requirement
+private ?bool $gdprConsent = false;
+
+// Status tracking: new, read, replied
+#[ORM\Column(length: 20, options: ['default' => 'new'])]      // Track processing
+private ?string $status = 'new';
+
+// Creation timestamp: When inquiry was submitted
+#[ORM\Column]
+private ?\DateTimeImmutable $createdAt = null;
+```
+
+**GDPR Considerations:**
+- `gdprConsent` is legally required for data processing in EU
+- `status` helps track which inquiries have been handled
+- `createdAt` helps with data retention policies
+
+### 4. Entity Relationships
+
+**Understanding Doctrine Relationships:**
+Doctrine ORM handles relationships between entities automatically. You define the relationship type, and Doctrine manages the foreign keys and join tables.
+
+#### Many-to-Many: Project <-> Technology
+This relationship means:
+- One project can use multiple technologies
+- One technology can be used in multiple projects
+
+```php
+// In Project entity (OWNING SIDE)
+#[ORM\ManyToMany(targetEntity: Technology::class)]           // Relationship type
+#[ORM\JoinTable(name: 'project_technology')]                // Custom join table name
+private Collection $technologies;
+
+// Required: Initialize in constructor
+public function __construct()
+{
+    $this->technologies = new ArrayCollection();
+}
+
+// In Technology entity (INVERSE SIDE)
+#[ORM\ManyToMany(targetEntity: Project::class, mappedBy: 'technologies')]  // Reference to owning side
+private Collection $projects;
+
+public function __construct()
+{
+    $this->projects = new ArrayCollection();
+}
+```
+
+**Relationship Concepts:**
+- **Owning Side**: The side that manages the relationship (has JoinTable)
+- **Inverse Side**: The side that references the owning side (has mappedBy)
+- **Join Table**: Intermediate table storing the relationships
+- **Collection**: Doctrine's container for multiple related entities
+
+#### Many-to-Many: Project <-> Student
+```php
+// In Project entity (OWNING SIDE)
+#[ORM\ManyToMany(targetEntity: Student::class, inversedBy: 'projects')]    // Points to inverse property
+#[ORM\JoinTable(name: 'project_student')]                                 // Custom join table
+private Collection $students;
+
+// In Student entity (INVERSE SIDE)
+#[ORM\ManyToMany(targetEntity: Project::class, mappedBy: 'students')]     // References owning property
+private Collection $projects;
+```
+
+**Why Many-to-Many?**
+- Students often work on multiple projects
+- Projects often have multiple student contributors
+- This relationship captures collaborative work accurately
+
+### 5. Validation Rules Explained
+
+Symfony's validation component ensures data integrity before database operations:
+
+```php
+// Required field validation
+#[Assert\NotBlank(message: 'This field is required')]
+private ?string $title = null;
+
+// Email format validation
+#[Assert\Email(message: 'Please provide a valid email address')]
+private ?string $email = null;
+
+// String length validation
+#[Assert\Length(
+    min: 8,                              // Minimum length
+    max: 255,                            // Maximum length
+    minMessage: 'Must be at least {{ limit }} characters',
+    maxMessage: 'Cannot exceed {{ limit }} characters'
+)]
+private ?string $password = null;
+
+// Choice validation (enum-like behavior)
+#[Assert\Choice(
+    choices: ['draft', 'published', 'hidden'],
+    message: 'Status must be one of: {{ choices }}'
+)]
+private ?string $status = null;
+
+// Boolean validation (for GDPR compliance)
+#[Assert\IsTrue(message: 'You must accept the terms and conditions')]
+private ?bool $gdprConsent = false;
+```
+
+**Validation Best Practices:**
+- Always validate required fields with `@NotBlank`
+- Use specific validators (`@Email`, `@Length`) for data types
+- Provide clear, user-friendly error messages
+- Validate business rules with `@Choice` or custom validators
+
+### 6. Lifecycle Callbacks Explained
+
+Lifecycle callbacks automatically execute code during entity lifecycle events:
+
+```php
+use Doctrine\ORM\Mapping as ORM;
+
+class Project
+{
+    // ... properties ...
+
+    // Executed BEFORE entity is first saved to database
+    #[ORM\PrePersist]
+    public function setCreatedAtValue(): void
+    {
+        $this->createdAt = new \DateTimeImmutable();  // Set current timestamp
+    }
+
+    // Executed BEFORE entity is updated in database
+    #[ORM\PreUpdate]
+    public function setUpdatedAtValue(): void
+    {
+        $this->updatedAt = new \DateTimeImmutable();  // Update timestamp
+    }
+}
+```
+
+**Available Lifecycle Events:**
+- `@PrePersist`: Before initial save
+- `@PostPersist`: After initial save
+- `@PreUpdate`: Before update
+- `@PostUpdate`: After update
+- `@PreRemove`: Before deletion
+- `@PostRemove`: After deletion
+
+### 7. Generate Migration
+After creating or modifying entities, you must update the database schema:
+
+```bash
+# Generate migration file based on entity changes
+php bin/console make:migration
+
+# Review the generated migration file in migrations/
+# Then apply the changes to your database
+php bin/console doctrine:migrations:migrate
+```
+
+**Migration Process:**
+1. Doctrine compares current entities with database schema
+2. Generates SQL commands to synchronize them
+3. Creates a versioned migration file
+4. You review and apply the migration
+
+## Best Practices Summary
+
+### Entity Design
+- **Single Responsibility**: Each entity should represent one clear concept
+- **Consistent Naming**: Use clear, descriptive property names
+- **Proper Types**: Choose appropriate Doctrine types for your data
+- **Nullable Fields**: Only make fields nullable if they're truly optional
+
+### Validation Strategy
+- **Client-Side + Server-Side**: Validate on both frontend and backend
+- **Clear Messages**: Provide helpful error messages for users
+- **Business Rules**: Validate business logic, not just data format
+- **Security**: Never trust client data - always validate server-side
+
+### Relationship Guidelines
+- **Performance**: Consider query performance when designing relationships
+- **Cascade Operations**: Use cascade options carefully to avoid unintended deletions
+- **Bidirectional**: Most relationships should be bidirectional for flexibility
+- **Collection Initialization**: Always initialize collections in constructors
+
+### Security Considerations
+- **Password Hashing**: Never store plain text passwords
+- **Input Sanitization**: Validate and sanitize all user input
+- **GDPR Compliance**: Handle personal data according to legal requirements
+- **Data Retention**: Plan for data lifecycle and deletion policies

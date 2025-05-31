@@ -1,0 +1,697 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Authentication and Security Configuration
+
+## Description
+This rule provides comprehensive guidelines for implementing JWT authentication and security in your API Platform project. Authentication is critical for protecting admin endpoints and ensuring only authorized users can modify data.
+
+## Understanding JWT Authentication
+
+**What is JWT (JSON Web Token)?**
+JWT is a secure way to transmit information between parties as a JSON object. In web APIs, JWTs are used to verify user identity without storing session data on the server.
+
+**JWT Structure:**
+- **Header**: Algorithm and token type
+- **Payload**: User data and claims (roles, expiration)
+- **Signature**: Ensures token hasn't been tampered with
+
+**Why JWT for API Authentication?**
+- **Stateless**: No server-side session storage needed
+- **Scalable**: Works across multiple servers
+- **Secure**: Cryptographically signed tokens
+- **Flexible**: Can carry custom user data
+
+## Required Dependencies
+
+### Install JWT Authentication Bundle
+```bash
+# This bundle provides JWT token generation and validation
+composer require lexik/jwt-authentication-bundle
+
+# It will:
+# - Add JWT configuration files
+# - Provide token generation services
+# - Handle token validation in requests
+# - Integrate with Symfony's security system
+```
+
+### Generate JWT Keys
+```bash
+# Generate public/private key pair for JWT signing
+php bin/console lexik:jwt:generate-keypair
+
+# This creates:
+# - config/jwt/private.pem (for signing tokens)
+# - config/jwt/public.pem (for verifying tokens)
+# - Sets secure file permissions
+```
+
+**Security Note**: Keep private key secure! It's used to sign tokens. If compromised, attackers can create valid tokens.
+
+## User Entity Configuration
+
+### Understanding UserInterface Implementation
+```php
+<?php
+
+namespace App\Entity;
+
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;  // For password-based auth
+use Symfony\Component\Security\Core\User\UserInterface;                      // Core user interface
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Serializer\Annotation\Groups;
+
+#[ORM\Entity(repositoryClass: UserRepository::class)]
+#[ORM\Table(name: '`user`')]                    // Backticks avoid SQL reserved word issues
+#[ApiResource(
+    operations: [
+        // Only expose custom authentication endpoints
+        // No standard CRUD to prevent security issues
+        new Post(
+            uriTemplate: '/auth/login',
+            processor: UserLoginProcessor::class
+        )
+    ]
+)]
+class User implements UserInterface, PasswordAuthenticatedUserInterface
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column]
+    private ?int $id = null;
+
+    // Email serves as username for authentication
+    #[ORM\Column(length: 180, unique: true)]    // Unique constraint prevents duplicates
+    #[Assert\NotBlank]                          // Required for login
+    #[Assert\Email]                             // Must be valid email format
+    #[Groups(['user:read', 'user:write'])]      // Control serialization
+    private ?string $email = null;
+
+    // Roles array: flexible permission system
+    #[ORM\Column]                               // Stored as JSON in database
+    #[Groups(['user:read'])]                    // Show roles in responses
+    private array $roles = [];
+
+    // Hashed password: NEVER store plain text
+    #[ORM\Column]                               // Database storage
+    private ?string $password = null;
+
+    // Plain password: temporary field for forms
+    #[Groups(['user:write'])]                   // Only accept in input
+    private ?string $plainPassword = null;      // Not stored in database
+
+    // Standard getters/setters...
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+
+    public function setEmail(string $email): static
+    {
+        $this->email = $email;
+        return $this;
+    }
+
+    // UserInterface implementation: identifies user by email
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;           // Email is our username
+    }
+
+    // Role management with default ROLE_USER
+    public function getRoles(): array
+    {
+        $roles = $this->roles;
+        $roles[] = 'ROLE_USER';                 // Every user gets ROLE_USER
+        return array_unique($roles);            // Remove duplicates
+    }
+
+    public function setRoles(array $roles): static
+    {
+        $this->roles = $roles;
+        return $this;
+    }
+
+    // Password handling
+    public function getPassword(): string
+    {
+        return $this->password;
+    }
+
+    public function setPassword(string $password): static
+    {
+        $this->password = $password;
+        return $this;
+    }
+
+    // Plain password for forms (not persisted)
+    public function getPlainPassword(): ?string
+    {
+        return $this->plainPassword;
+    }
+
+    public function setPlainPassword(?string $plainPassword): static
+    {
+        $this->plainPassword = $plainPassword;
+        return $this;
+    }
+
+    // Security requirement: clear sensitive data
+    public function eraseCredentials(): void
+    {
+        $this->plainPassword = null;            // Clear plain text password
+    }
+}
+```
+
+**Key Security Concepts:**
+- **UserInterface**: Required by Symfony's security system
+- **PasswordAuthenticatedUserInterface**: Enables password-based authentication
+- **eraseCredentials()**: Clears sensitive data after authentication
+- **getUserIdentifier()**: Returns unique identifier (email in our case)
+
+## Security Configuration Deep Dive
+
+### Understanding security.yaml
+```yaml
+# config/packages/security.yaml
+security:
+    # Password encoding configuration
+    password_hashers:
+        App\Entity\User:
+            algorithm: auto                     # Use best available algorithm (bcrypt/argon2)
+            # Symfony automatically chooses secure defaults
+
+    # User provider: how to load users
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User          # User entity class
+                property: email                 # Field used as username
+
+    # Firewall configuration: different security rules for different URLs
+    firewalls:
+        # Development toolbar (no security needed)
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        # Login endpoint: special handling for authentication
+        login:
+            pattern: ^/api/auth/login           # Match login URL
+            stateless: true                     # No session, JWT only
+            json_login:                         # Handle JSON login requests
+                check_path: /api/auth/login     # URL to process login
+                username_path: email            # JSON field for username
+                password_path: password         # JSON field for password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        # API endpoints: JWT token validation
+        api:
+            pattern: ^/api                      # Match all API URLs
+            stateless: true                     # No sessions
+            jwt: ~                              # Enable JWT validation
+
+        # Default firewall for non-API URLs
+        main:
+            lazy: true
+            provider: app_user_provider
+
+    # Access control: URL-based permissions
+    access_control:
+        # Public endpoints (no authentication required)
+        - { path: ^/api/auth/login, roles: PUBLIC_ACCESS }
+        - { path: ^/api/projects$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/projects/\d+$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/students$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/technologies$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/contact, roles: PUBLIC_ACCESS, methods: [POST] }
+
+        # Admin endpoints (require ROLE_ADMIN)
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
+
+        # All other API endpoints require authentication
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+
+    # Role hierarchy: higher roles inherit lower roles
+    role_hierarchy:
+        ROLE_ADMIN: ROLE_USER                   # Admin users also have USER role
+```
+
+**Firewall Explanation:**
+- **dev**: No security for development tools
+- **login**: Special handling for authentication endpoint
+- **api**: JWT validation for all API endpoints
+- **main**: Fallback for non-API URLs
+
+**Access Control Strategy:**
+1. **Public Access**: Anyone can access these endpoints
+2. **Admin Only**: Requires ROLE_ADMIN
+3. **Authenticated**: Requires valid JWT token
+
+## Custom Processors for Authentication
+
+### User Login Processor Implementation
+```php
+<?php
+
+namespace App\State;
+
+use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\ProcessorInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Security\Core\Exception\BadCredentialsException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use App\Repository\UserRepository;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+
+class UserLoginProcessor implements ProcessorInterface
+{
+    public function __construct(
+        private UserRepository $userRepository,                    // To find users
+        private UserPasswordHasherInterface $passwordHasher,       // To verify passwords
+        private JWTTokenManagerInterface $jwtManager               // To generate tokens
+    ) {}
+
+    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): JsonResponse
+    {
+        // Extract credentials from request
+        $email = $data->getEmail();
+        $plainPassword = $data->getPlainPassword();
+
+        // Find user by email
+        $user = $this->userRepository->findOneBy(['email' => $email]);
+
+        // Verify user exists and password is correct
+        if (!$user || !$this->passwordHasher->isPasswordValid($user, $plainPassword)) {
+            throw new BadCredentialsException('Invalid credentials');
+        }
+
+        // Generate JWT token for authenticated user
+        $token = $this->jwtManager->create($user);
+
+        // Return token and user info
+        return new JsonResponse([
+            'token' => $token,                  // JWT token for future requests
+            'user' => [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'roles' => $user->getRoles()
+            ]
+        ]);
+    }
+}
+```
+
+**Login Process Flow:**
+1. User submits email/password
+2. Processor finds user by email
+3. Password is verified using secure hash comparison
+4. JWT token is generated with user information
+5. Token and user data returned to client
+
+### User Registration Processor (Admin Only)
+```php
+<?php
+
+namespace App\State;
+
+use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\ProcessorInterface;
+use App\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+
+class UserRegistrationProcessor implements ProcessorInterface
+{
+    public function __construct(
+        private EntityManagerInterface $entityManager,              // To save users
+        private UserPasswordHasherInterface $passwordHasher         // To hash passwords
+    ) {}
+
+    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): JsonResponse
+    {
+        $user = $data;
+
+        // Hash password if provided
+        if ($user->getPlainPassword()) {
+            $hashedPassword = $this->passwordHasher->hashPassword(
+                $user,
+                $user->getPlainPassword()
+            );
+            $user->setPassword($hashedPassword);
+            $user->eraseCredentials();                              // Clear plain password
+        }
+
+        // Save user to database
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'message' => 'User created successfully',
+            'user' => [
+                'id' => $user->getId(),
+                'email' => $user->getEmail(),
+                'roles' => $user->getRoles()
+            ]
+        ], 201);                                                   // 201 Created status
+    }
+}
+```
+
+**Registration Security:**
+- Password is automatically hashed using Symfony's secure hasher
+- Plain password is cleared from memory after hashing
+- Only returns safe user data (no password hash)
+
+## Security Annotations on Entities
+
+### Project Entity with Layered Security
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC ENDPOINTS - No security required
+        new GetCollection(
+            uriTemplate: '/projects',
+            security: "true"                                        // Always allow (public)
+        ),
+        new Get(
+            uriTemplate: '/projects/{id}',
+            security: "true"                                        // Always allow (public)
+        ),
+
+        // ADMIN ENDPOINTS - Role-based security
+        new GetCollection(
+            uriTemplate: '/admin/projects',
+            security: "is_granted('ROLE_ADMIN')"                   // Only admins
+        ),
+        new Post(
+            uriTemplate: '/admin/projects',
+            security: "is_granted('ROLE_ADMIN')"                   // Only admins can create
+        ),
+        new Put(
+            uriTemplate: '/admin/projects/{id}',
+            security: "is_granted('ROLE_ADMIN')"                   // Only admins can update
+        ),
+        new Delete(
+            uriTemplate: '/admin/projects/{id}',
+            security: "is_granted('ROLE_ADMIN')"                   // Only admins can delete
+        )
+    ]
+)]
+class Project
+{
+    // Entity with dual access: public read, admin write
+}
+```
+
+**Security Expression Language:**
+- `"true"`: Always allow access
+- `"is_granted('ROLE_ADMIN')"`: Require specific role
+- `"object.getOwner() == user"`: Object-level permissions
+- `"is_granted('ROLE_ADMIN') or object.getOwner() == user"`: Multiple conditions
+
+### Contact Request with GDPR Validation
+```php
+#[ApiResource(
+    operations: [
+        new Post(
+            uriTemplate: '/contact/admissions',
+            processor: ContactRequestProcessor::class,
+            security: "true"                                        // Public contact form
+        ),
+        new GetCollection(
+            uriTemplate: '/admin/contacts',
+            security: "is_granted('ROLE_ADMIN')"                   // Admin only
+        )
+    ]
+)]
+class ContactRequest
+{
+    // GDPR compliance: legal requirement in EU
+    #[ORM\Column]
+    #[Assert\IsTrue(message: 'You must accept the GDPR terms.')]
+    #[Groups(['contact:write'])]
+    private ?bool $gdprConsent = false;
+
+    // Other properties...
+}
+```
+
+**GDPR Compliance Notes:**
+- Consent must be explicit and informed
+- Users must understand what data is collected
+- Data retention policies must be implemented
+- Users have right to data deletion
+
+## JWT Configuration Details
+
+### JWT Bundle Configuration
+```yaml
+# config/packages/lexik_jwt_authentication.yaml
+lexik_jwt_authentication:
+    secret_key: '%env(resolve:JWT_SECRET_KEY)%'        # Private key for signing
+    public_key: '%env(resolve:JWT_PUBLIC_KEY)%'        # Public key for verification
+    pass_phrase: '%env(JWT_PASSPHRASE)%'               # Key encryption passphrase
+    token_ttl: 3600                                    # Token lifetime (1 hour)
+
+    # Optional: Custom token extraction
+    # token_extractors:
+    #     authorization_header:
+    #         enabled: true
+    #         prefix: Bearer
+    #         name: Authorization
+```
+
+### Environment Variables (.env)
+```bash
+# JWT key paths (generated by lexik:jwt:generate-keypair)
+JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
+JWT_PUBLIC_KEY=%kernel.project_dir%/config/jwt/public.pem
+JWT_PASSPHRASE=your_secure_passphrase_here
+
+# Make passphrase strong and unique!
+# Example: JWT_PASSPHRASE=Xs9$mK2#nP8@wR4&vY7*zA1!qE3%tU6
+```
+
+**Security Best Practices for Environment:**
+- Use strong, unique passphrase
+- Never commit .env to version control
+- Use different keys for different environments
+- Rotate keys periodically in production
+
+## API Testing with Authentication
+
+### Authentication Flow Testing
+```bash
+# 1. Login to get JWT token
+curl -X POST "http://localhost:8000/api/auth/login" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "admin@example.com",
+       "password": "admin123"
+     }'
+
+# Response:
+# {
+#   "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+#   "user": {
+#     "id": 1,
+#     "email": "admin@example.com",
+#     "roles": ["ROLE_USER", "ROLE_ADMIN"]
+#   }
+# }
+```
+
+### Using JWT Token in Requests
+```bash
+# 2. Use token in subsequent requests
+curl -X GET "http://localhost:8000/api/admin/projects" \
+     -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+
+# 3. Test unauthorized access (should fail)
+curl -X GET "http://localhost:8000/api/admin/projects"
+# Response: 401 Unauthorized
+
+# 4. Test with invalid token (should fail)
+curl -X GET "http://localhost:8000/api/admin/projects" \
+     -H "Authorization: Bearer invalid_token"
+# Response: 401 Unauthorized
+```
+
+## Best Practices for Security
+
+### Password Security Implementation
+```php
+// Always use Symfony's password hasher
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
+// In UserRegistrationProcessor or similar
+$hashedPassword = $this->passwordHasher->hashPassword(
+    $user,
+    $user->getPlainPassword()
+);
+$user->setPassword($hashedPassword);
+
+// Clear plain text immediately
+$user->eraseCredentials();
+```
+
+**Why Symfony's Password Hasher?**
+- Uses secure algorithms (bcrypt, argon2)
+- Automatically handles salt generation
+- Provides timing attack protection
+- Updates algorithms as security improves
+
+### Input Validation Strategy
+```php
+// Comprehensive validation for User entity
+class User
+{
+    #[Assert\NotBlank(message: 'Email is required')]
+    #[Assert\Email(message: 'Please provide a valid email address')]
+    #[Assert\Length(max: 180, maxMessage: 'Email cannot exceed {{ limit }} characters')]
+    private ?string $email = null;
+
+    #[Assert\NotBlank(message: 'Password is required', groups: ['registration'])]
+    #[Assert\Length(
+        min: 8,
+        max: 255,
+        minMessage: 'Password must be at least {{ limit }} characters',
+        maxMessage: 'Password cannot exceed {{ limit }} characters'
+    )]
+    #[Assert\Regex(
+        pattern: '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/',
+        message: 'Password must contain at least one lowercase letter, one uppercase letter, and one number'
+    )]
+    private ?string $plainPassword = null;
+}
+```
+
+**Validation Layers:**
+1. **Format Validation**: Email format, length limits
+2. **Business Rules**: Password complexity requirements
+3. **Security Rules**: Prevent common attack patterns
+4. **Database Constraints**: Unique email addresses
+
+### Role-Based Access Control
+```php
+// Define clear role hierarchy
+// config/packages/security.yaml
+role_hierarchy:
+    ROLE_ADMIN: ROLE_USER           # Admins inherit user permissions
+    ROLE_SUPER_ADMIN: ROLE_ADMIN    # Super admins inherit admin permissions
+
+// Use roles in security expressions
+security: "is_granted('ROLE_ADMIN')"                           // Require admin role
+security: "is_granted('ROLE_USER') and object.getOwner() == user"  // User owns resource
+security: "is_granted('ROLE_ADMIN') or object.isPublic()"         // Admin or public resource
+```
+
+## Error Handling and Security
+
+### Custom Authentication Exceptions
+```php
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
+
+class CustomAuthenticationException extends AuthenticationException
+{
+    public function getMessageKey(): string
+    {
+        return 'Invalid credentials provided.';
+    }
+}
+
+// Usage in processors
+if (!$user || !$this->passwordHasher->isPasswordValid($user, $plainPassword)) {
+    throw new CustomAuthenticationException();
+}
+```
+
+### Secure Error Messages
+```php
+// DON'T: Reveal too much information
+if (!$user) {
+    throw new Exception("User with email {$email} not found");
+}
+
+// DO: Use generic messages
+if (!$user || !$this->passwordHasher->isPasswordValid($user, $plainPassword)) {
+    throw new BadCredentialsException('Invalid credentials');
+}
+```
+
+**Security Principle**: Never reveal whether email exists or password is wrong - use generic "invalid credentials" message.
+
+## Advanced Security Patterns
+
+### Rate Limiting (Recommended Addition)
+```php
+// Consider adding rate limiting for login attempts
+// composer require symfony/rate-limiter
+
+// In UserLoginProcessor
+use Symfony\Component\RateLimiter\RateLimiterFactory;
+
+public function __construct(
+    // ... other dependencies
+    private RateLimiterFactory $loginLimiter
+) {}
+
+public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): JsonResponse
+{
+    // Limit login attempts by IP
+    $limiter = $this->loginLimiter->create($request->getClientIp());
+    if (false === $limiter->consume()->isAccepted()) {
+        throw new TooManyRequestsException('Too many login attempts');
+    }
+
+    // ... rest of login logic
+}
+```
+
+### Token Refresh Strategy
+```php
+// Consider implementing token refresh for better UX
+// Short-lived access tokens (15 minutes)
+// Longer-lived refresh tokens (7 days)
+
+// config/packages/lexik_jwt_authentication.yaml
+lexik_jwt_authentication:
+    token_ttl: 900  # 15 minutes for access token
+
+    # Add refresh token configuration
+    # refresh_token_ttl: 604800  # 7 days for refresh token
+```
+
+### CORS Security for Frontend
+```yaml
+# config/packages/nelmio_cors.yaml
+nelmio_cors:
+    defaults:
+        origin_regex: true
+        # PRODUCTION: Use specific domains
+        allow_origin: ['https://your-domain.com']
+        # DEVELOPMENT: Allow localhost
+        # allow_origin: ['http://localhost:3000', 'http://localhost:8080']
+
+        allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']
+        allow_headers: ['Content-Type', 'Authorization']
+        expose_headers: ['Link']
+        max_age: 3600
+```
+
+This comprehensive guide ensures you understand not just how to implement authentication, but why each security measure is important for protecting your portfolio API.

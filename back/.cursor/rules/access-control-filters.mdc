@@ -1,0 +1,669 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Access Control and Data Filtering
+
+## Description
+This rule provides comprehensive guidelines for implementing access control, data filtering, and security restrictions in API Platform. Proper access control ensures that users can only access and modify data they're authorized to see, while data filtering optimizes performance and user experience.
+
+## Understanding Access Control in API Platform
+
+**What is Access Control?**
+Access control determines who can perform what actions on which resources. In API Platform, this is implemented through multiple layers:
+- **URL-level security**: Protecting entire endpoints
+- **Entity-level security**: Controlling access to specific entities
+- **Field-level security**: Showing/hiding specific fields
+- **Object-level security**: Access based on resource ownership
+
+**Security Layers in Portfolio Project:**
+1. **Public Layer**: Anyone can access (project listings, contact forms)
+2. **Authentication Layer**: Valid JWT token required
+3. **Authorization Layer**: Specific roles required (admin operations)
+4. **Data Layer**: Field visibility based on user context
+
+## Access Control Strategies
+
+### 1. Entity-Level Security Explained
+Use the `security` attribute on operations to control access:
+
+```php
+#[ApiResource(
+    operations: [
+        new GetCollection(
+            security: "is_granted('ROLE_ADMIN')"                   // Only admins can list
+        ),
+        new Get(
+            security: "is_granted('ROLE_ADMIN') or object.getOwner() == user"  // Admin or owner
+        ),
+        new Post(
+            security: "is_granted('ROLE_USER')"                    // Any authenticated user
+        ),
+        new Put(
+            security: "is_granted('ROLE_ADMIN') or (is_granted('ROLE_USER') and object.getOwner() == user)"  // Complex logic
+        )
+    ]
+)]
+class Project
+{
+    // Entity implementation with multi-level access control
+}
+```
+
+**Security Expression Components:**
+- `is_granted('ROLE_X')`: Check if user has specific role
+- `object`: The current entity being accessed
+- `user`: The currently authenticated user
+- `and`, `or`: Logical operators for complex rules
+
+### 2. Field-Level Security with Serialization Groups
+Control which fields are exposed based on user role:
+
+```php
+class Project
+{
+    // Fields visible to everyone (public access)
+    #[Groups(['project:read:public', 'project:read:admin'])]
+    private ?string $title = null;
+
+    #[Groups(['project:read:public', 'project:read:admin'])]
+    private ?string $shortDescription = null;
+
+    // Fields only visible to admins (sensitive information)
+    #[Groups(['project:read:admin'])]                           // Admin-only visibility
+    private ?string $status = null;
+
+    #[Groups(['project:read:admin'])]                           // Admin-only visibility
+    private ?\DateTimeImmutable $createdAt = null;
+
+    // Fields only for write operations (form submissions)
+    #[Groups(['project:write'])]                                // Write-only fields
+    private ?string $description = null;
+}
+```
+
+**Serialization Group Strategy:**
+- **Public Groups**: Safe data for anonymous users
+- **Admin Groups**: Full data access for administrators
+- **Write Groups**: Control what fields can be modified
+- **Action-specific Groups**: Special operations like status updates
+
+### 3. Custom Security Voters for Complex Logic
+For complex access control logic that goes beyond simple role checks:
+
+```php
+<?php
+
+namespace App\Security\Voter;
+
+use App\Entity\Project;
+use App\Entity\User;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Voter;
+use Symfony\Component\Security\Core\User\UserInterface;
+
+class ProjectVoter extends Voter
+{
+    // Define permission constants
+    public const VIEW = 'PROJECT_VIEW';
+    public const EDIT = 'PROJECT_EDIT';
+    public const DELETE = 'PROJECT_DELETE';
+
+    // Check if this voter can handle the given attribute and subject
+    protected function supports(string $attribute, mixed $subject): bool
+    {
+        return in_array($attribute, [self::VIEW, self::EDIT, self::DELETE])
+            && $subject instanceof Project;
+    }
+
+    // Main voting logic
+    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
+    {
+        $user = $token->getUser();
+
+        // Must be logged in to access projects
+        if (!$user instanceof UserInterface) {
+            return false;
+        }
+
+        /** @var Project $project */
+        $project = $subject;
+
+        // Use match expression for clean permission logic
+        return match($attribute) {
+            self::VIEW => $this->canView($project, $user),
+            self::EDIT => $this->canEdit($project, $user),
+            self::DELETE => $this->canDelete($project, $user),
+            default => false,
+        };
+    }
+
+    private function canView(Project $project, UserInterface $user): bool
+    {
+        // Public projects can be viewed by anyone
+        if ($project->getStatus() === 'published') {
+            return true;
+        }
+
+        // Admin can view any project (draft, hidden, published)
+        if (in_array('ROLE_ADMIN', $user->getRoles())) {
+            return true;
+        }
+
+        // Users can view their own projects (even unpublished)
+        return $project->getStudents()->contains($user);
+    }
+
+    private function canEdit(Project $project, UserInterface $user): bool
+    {
+        // Only admin can edit projects
+        // This could be extended to allow students to edit their own projects
+        return in_array('ROLE_ADMIN', $user->getRoles());
+    }
+
+    private function canDelete(Project $project, UserInterface $user): bool
+    {
+        // Only admin can delete projects
+        // Consider soft delete instead of hard delete for data preservation
+        return in_array('ROLE_ADMIN', $user->getRoles());
+    }
+}
+```
+
+**When to use Custom Voters:**
+- **Complex Business Logic**: When simple role checks aren't enough
+- **Resource Ownership**: When access depends on who owns the resource
+- **Conditional Access**: When access rules change based on resource state
+- **Reusable Logic**: When the same logic is used in multiple places
+
+## Data Filtering Strategies
+
+### 1. Status-Based Filtering for Public/Admin Access
+Filter data based on status for public/admin access:
+
+```php
+#[ApiResource(
+    operations: [
+        new GetCollection(
+            uriTemplate: '/projects',
+            provider: PublicProjectProvider::class,                // Custom filtering logic
+            normalizationContext: ['groups' => ['project:read:public']]
+        ),
+        new GetCollection(
+            uriTemplate: '/admin/projects',
+            security: "is_granted('ROLE_ADMIN')",                 // No filtering for admins
+            normalizationContext: ['groups' => ['project:read:admin']]
+        )
+    ]
+)]
+class Project
+{
+    #[ORM\Column(length: 20, options: ['default' => 'draft'])]
+    private ?string $status = 'draft';                            // draft, published, hidden
+
+    // Status affects visibility:
+    // - draft: Only visible to admins and project contributors
+    // - published: Visible to everyone
+    // - hidden: Only visible to admins
+}
+```
+
+### 2. Custom Data Provider for Advanced Filtering
+```php
+<?php
+
+namespace App\State;
+
+use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\ProviderInterface;
+use App\Repository\ProjectRepository;
+use Symfony\Bundle\SecurityBundle\Security;
+
+class PublicProjectProvider implements ProviderInterface
+{
+    public function __construct(
+        private ProjectRepository $projectRepository,
+        private Security $security                                 // Access to current user
+    ) {}
+
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
+    {
+        // Get current user (null if not authenticated)
+        $user = $this->security->getUser();
+
+        if ($this->security->isGranted('ROLE_ADMIN')) {
+            // Admins see all projects
+            return $this->projectRepository->findAll();
+        } elseif ($user) {
+            // Authenticated users see published projects + their own
+            return $this->projectRepository->findPublishedOrOwnedBy($user);
+        } else {
+            // Anonymous users only see published projects
+            return $this->projectRepository->findBy(['status' => 'published']);
+        }
+    }
+}
+```
+
+**Repository Method Example:**
+```php
+// In ProjectRepository
+public function findPublishedOrOwnedBy(UserInterface $user): array
+{
+    return $this->createQueryBuilder('p')
+        ->leftJoin('p.students', 's')
+        ->where('p.status = :published OR s = :user')
+        ->setParameter('published', 'published')
+        ->setParameter('user', $user)
+        ->getQuery()
+        ->getResult();
+}
+```
+
+### 3. Built-in Filters for Enhanced User Experience
+```php
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+
+#[ApiResource]
+// Text search configuration
+#[ApiFilter(SearchFilter::class, properties: [
+    'title' => 'partial',              // LIKE %search% on title
+    'description' => 'partial',        // LIKE %search% on description
+    'technologies.name' => 'exact',    // Exact match on related technology
+    'year' => 'exact',                 // Exact match on year
+    'status' => 'exact'                // Exact match on status (for admin)
+])]
+
+// Sorting configuration
+#[ApiFilter(OrderFilter::class, properties: [
+    'createdAt' => 'DESC',             // Most recent first (default)
+    'title' => 'ASC',                 // Alphabetical sorting
+    'year' => 'DESC'                   // Newest year first
+])]
+
+// Date range filtering
+#[ApiFilter(RangeFilter::class, properties: ['createdAt'])]
+
+class Project
+{
+    // Entity with comprehensive filtering capabilities
+    // Enables powerful search interfaces in frontend
+}
+```
+
+**Filter Usage Examples:**
+```bash
+# Search projects with "React" in title
+GET /api/projects?title=React
+
+# Find projects using specific technology
+GET /api/projects?technologies.name=TypeScript
+
+# Filter by year
+GET /api/projects?year=2024
+
+# Sort by creation date (newest first)
+GET /api/projects?order[createdAt]=desc
+
+# Complex filtering
+GET /api/projects?title=portfolio&technologies.name=React&order[year]=desc
+```
+
+## Access Control Patterns for Portfolio Project
+
+### 1. Project Entity Access Control Strategy
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC ENDPOINTS - No authentication required, published projects only
+        new GetCollection(
+            uriTemplate: '/projects',
+            provider: PublicProjectProvider::class,               // Custom filtering
+            normalizationContext: ['groups' => ['project:read:public']]
+        ),
+        new Get(
+            uriTemplate: '/projects/{id}',
+            provider: PublicProjectItemProvider::class,           // Single item filtering
+            normalizationContext: ['groups' => ['project:read:public']]
+        ),
+
+        // ADMIN ENDPOINTS - Full access to all projects
+        new GetCollection(
+            uriTemplate: '/admin/projects',
+            security: "is_granted('ROLE_ADMIN')",                // Admin access only
+            normalizationContext: ['groups' => ['project:read:admin']]  // Full data access
+        ),
+        new Post(
+            uriTemplate: '/admin/projects',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['project:write']]  // Control input fields
+        ),
+        new Put(
+            uriTemplate: '/admin/projects/{id}',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['project:write']]
+        ),
+        new Patch(
+            uriTemplate: '/admin/projects/{id}/status',           // Special status update
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['project:status']]  // Only status field
+        ),
+        new Delete(
+            uriTemplate: '/admin/projects/{id}',
+            security: "is_granted('ROLE_ADMIN')"
+        )
+    ]
+)]
+class Project
+{
+    // Field-level access control
+    #[Groups(['project:read:public', 'project:read:admin', 'project:write'])]
+    private ?string $title = null;
+
+    #[Groups(['project:read:public', 'project:read:admin', 'project:write'])]
+    private ?string $shortDescription = null;
+
+    #[Groups(['project:read:admin', 'project:write'])]           // Admin-only field
+    private ?string $description = null;
+
+    #[Groups(['project:read:admin', 'project:status'])]          // Admin-only, special status group
+    private ?string $status = 'draft';
+
+    #[Groups(['project:read:admin'])]                            // Admin-only metadata
+    private ?\DateTimeImmutable $createdAt = null;
+}
+```
+
+### 2. Student Entity Access Control
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC READ - Basic student information for project attribution
+        new GetCollection(
+            uriTemplate: '/students',
+            normalizationContext: ['groups' => ['student:read']]
+        ),
+
+        // ADMIN MANAGEMENT - Full student lifecycle management
+        new GetCollection(
+            uriTemplate: '/admin/students',
+            security: "is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['student:read:admin']]
+        ),
+        new Post(
+            uriTemplate: '/admin/students',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['student:write']]
+        ),
+        new Put(
+            uriTemplate: '/admin/students/{id}',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['student:write']]
+        ),
+        new Delete(
+            uriTemplate: '/admin/students/{id}',
+            security: "is_granted('ROLE_ADMIN')"
+        )
+    ]
+)]
+class Student
+{
+    // Name visible to public for project attribution
+    #[Groups(['student:read:public', 'student:read:admin', 'student:write'])]
+    private ?string $name = null;
+
+    // Email only visible to admins (privacy)
+    #[Groups(['student:read:admin', 'student:write'])]
+    private ?string $email = null;
+
+    // Year visible to public for context
+    #[Groups(['student:read:public', 'student:read:admin', 'student:write'])]
+    private ?string $year = null;
+
+    // Bio only visible to admins (detailed info)
+    #[Groups(['student:read:admin', 'student:write'])]
+    private ?string $bio = null;
+}
+```
+
+### 3. ContactRequest Entity Access Control
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC CONTACT FORM - Anyone can submit inquiries
+        new Post(
+            uriTemplate: '/contact/admissions',
+            processor: ContactRequestProcessor::class,           // Custom processing with email
+            denormalizationContext: ['groups' => ['contact:write']]
+        ),
+
+        // ADMIN INQUIRY MANAGEMENT - View and manage contact requests
+        new GetCollection(
+            uriTemplate: '/admin/contacts',
+            security: "is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['contact:read']]
+        ),
+        new Patch(
+            uriTemplate: '/admin/contacts/{id}/status',          // Update inquiry status
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['contact:status']]
+        )
+    ]
+)]
+class ContactRequest
+{
+    // Basic contact information (visible to admins only)
+    #[Groups(['contact:write', 'contact:read'])]
+    private ?string $firstName = null;
+
+    #[Groups(['contact:write', 'contact:read'])]
+    private ?string $email = null;
+
+    #[Groups(['contact:write', 'contact:read'])]
+    private ?string $message = null;
+
+    // GDPR consent (required for submission, visible to admins)
+    #[Groups(['contact:write'])]
+    #[Assert\IsTrue(message: 'GDPR consent is required')]
+    private ?bool $gdprConsent = false;
+
+    // Status tracking (admin-only visibility and modification)
+    #[Groups(['contact:read', 'contact:status'])]
+    private ?string $status = 'new';
+
+    // Timestamp (admin-only visibility)
+    #[Groups(['contact:read'])]
+    private ?\DateTimeImmutable $createdAt = null;
+}
+```
+
+**Why no public GET operations for contacts?**
+- **Privacy Protection**: Contact information contains personal data
+- **GDPR Compliance**: Minimize exposure of personal information
+- **Business Logic**: Only administrators need to see inquiries
+- **Security**: Prevent enumeration of contact requests
+
+## Dynamic Security Expressions
+
+### Understanding Security Expression Language
+```php
+// Basic role checking
+security: "is_granted('ROLE_ADMIN')"
+
+// Check if user owns the resource (object-level security)
+security: "object.getOwner() == user"
+
+// Check if user is in a specific group
+security: "user.getGroups().contains(object.getGroup())"
+
+// Combine multiple conditions with logical operators
+security: "is_granted('ROLE_ADMIN') or (is_granted('ROLE_USER') and object.getOwner() == user)"
+
+// Check resource status for conditional access
+security: "object.getStatus() == 'published' or is_granted('ROLE_ADMIN')"
+
+// Complex business logic
+security: "is_granted('ROLE_ADMIN') or (object.isPublic() and object.getStartDate() <= now())"
+```
+
+**Available Variables in Security Expressions:**
+- `user`: Current authenticated user (null if anonymous)
+- `object`: The entity being accessed (for item operations)
+- `request`: Current HTTP request object
+- Custom variables through expression language providers
+
+## Data Validation and GDPR Compliance
+
+### GDPR Compliance Implementation
+```php
+class ContactRequest
+{
+    // Explicit consent validation
+    #[Assert\IsTrue(message: 'You must accept the privacy policy and GDPR terms')]
+    #[Groups(['contact:write'])]
+    private ?bool $gdprConsent = false;
+
+    // Required contact validation
+    #[Assert\NotBlank(groups: ['contact:write'])]
+    #[Assert\Email(groups: ['contact:write'])]
+    private ?string $email = null;
+
+    // Data retention tracking for GDPR compliance
+    #[ORM\Column]
+    private ?\DateTimeImmutable $dataRetentionDate = null;
+
+    // Automatic data retention calculation
+    #[ORM\PrePersist]
+    public function setDataRetention(): void
+    {
+        // Set data retention for 3 years as per GDPR Article 5
+        $this->dataRetentionDate = new \DateTimeImmutable('+3 years');
+    }
+
+    // Data subject rights implementation
+    public function anonymizePersonalData(): void
+    {
+        $this->firstName = 'ANONYMIZED';
+        $this->lastName = 'ANONYMIZED';
+        $this->email = 'anonymized@gdpr-deleted.com';
+        $this->phone = null;
+        $this->message = 'Personal data removed per GDPR request';
+    }
+}
+```
+
+**GDPR Requirements Implementation:**
+- **Consent**: Explicit checkbox that must be checked
+- **Data Minimization**: Only collect necessary information
+- **Retention Limits**: Automatically calculate deletion dates
+- **Right to Erasure**: Provide methods to anonymize data
+- **Transparency**: Clear privacy policy and data usage
+
+## Best Practices for Access Control
+
+### 1. Principle of Least Privilege
+```php
+// DON'T: Give broad access
+security: "is_granted('ROLE_USER')"  // Too permissive
+
+// DO: Be specific about what's allowed
+security: "is_granted('ROLE_ADMIN') or (object.getStatus() == 'published')"  // Specific conditions
+```
+
+### 2. Layered Security Approach
+```php
+// Layer 1: URL-level security (security.yaml)
+- { path: ^/api/admin, roles: ROLE_ADMIN }
+
+// Layer 2: Operation-level security (entity annotations)
+security: "is_granted('ROLE_ADMIN')"
+
+// Layer 3: Field-level security (serialization groups)
+#[Groups(['admin:read'])]
+
+// Layer 4: Business logic security (custom voters)
+$this->denyAccessUnlessGranted('PROJECT_EDIT', $project);
+```
+
+### 3. Error Handling that Doesn't Leak Information
+```php
+// DON'T: Reveal internal structure
+if (!$project) {
+    throw new NotFoundHttpException('Project with ID ' . $id . ' not found in database');
+}
+
+// DO: Use generic messages
+if (!$project || !$this->isGranted('PROJECT_VIEW', $project)) {
+    throw new NotFoundHttpException('Project not found');
+}
+```
+
+### 4. Testing Security Controls
+```bash
+# Test public access (should work)
+curl -X GET "http://localhost:8000/api/projects"
+
+# Test admin access without token (should fail with 401)
+curl -X GET "http://localhost:8000/api/admin/projects"
+
+# Test admin access with valid token (should work)
+curl -X GET "http://localhost:8000/api/admin/projects" \
+     -H "Authorization: Bearer VALID_JWT_TOKEN"
+
+# Test forbidden operation with user token (should fail with 403)
+curl -X DELETE "http://localhost:8000/api/admin/projects/1" \
+     -H "Authorization: Bearer USER_TOKEN"
+
+# Test accessing hidden/draft project as anonymous user (should fail)
+curl -X GET "http://localhost:8000/api/projects/123"  # where 123 is draft project
+```
+
+## Advanced Access Control Patterns
+
+### Context-Aware Security
+```php
+// Security that depends on request context
+security: "request.getMethod() == 'GET' or is_granted('ROLE_ADMIN')"
+
+// Time-based security
+security: "object.getPublishDate() <= now() or is_granted('ROLE_ADMIN')"
+
+// Location-based security (if applicable)
+security: "object.isGloballyVisible() or user.getCountry() == object.getTargetCountry()"
+```
+
+### Audit Logging for Security Events
+```php
+// Log security-relevant events
+use Psr\Log\LoggerInterface;
+
+class ProjectVoter extends Voter
+{
+    public function __construct(
+        private LoggerInterface $securityLogger
+    ) {}
+
+    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
+    {
+        $user = $token->getUser();
+        $result = // ... voting logic
+
+        // Log security decisions
+        $this->securityLogger->info('Access control decision', [
+            'user' => $user?->getUserIdentifier(),
+            'attribute' => $attribute,
+            'resource' => get_class($subject),
+            'resource_id' => $subject->getId(),
+            'decision' => $result ? 'GRANTED' : 'DENIED'
+        ]);
+
+        return $result;
+    }
+}
+```
+
+This comprehensive guide ensures you understand the full spectrum of access control in API Platform, from basic security to advanced patterns for complex applications.
