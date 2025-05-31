@@ -29,7 +29,7 @@ get_auth_token() {
     local email=$1
     local password=$2
 
-    echo -e "${YELLOW}🔄 Logging in ${email}...${NC}"
+    echo -e "${YELLOW}🔄 Logging in ${email}...${NC}" >&2
 
     # Make login request
     response=$(curl -s -X POST "${API_BASE_URL}/api/login_check" \
@@ -45,16 +45,16 @@ get_auth_token() {
         # Extract token from response
         token=$(echo "$body" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
         if [ -n "$token" ]; then
-            echo -e "${GREEN}✅ Login successful${NC}"
-            echo "$token"
+            echo -e "${GREEN}✅ Login successful${NC}" >&2
+            echo "$token"  # This is the only output that should be captured
         else
-            echo -e "${RED}❌ Failed to extract token from response${NC}"
-            echo "Response: $body"
+            echo -e "${RED}❌ Failed to extract token from response${NC}" >&2
+            echo "Response: $body" >&2
             exit 1
         fi
     else
-        echo -e "${RED}❌ Login failed (HTTP $http_code)${NC}"
-        echo "Response: $body"
+        echo -e "${RED}❌ Login failed (HTTP $http_code)${NC}" >&2
+        echo "Response: $body" >&2
         exit 1
     fi
 }

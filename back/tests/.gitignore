@@ -1,0 +1,2 @@
+# Ignore the temporary auth tokens file
+.auth_tokens

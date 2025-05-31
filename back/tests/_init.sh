@@ -50,14 +50,14 @@ else
     echo -e "${YELLOW}ℹ️  Admin user already exists: ${ADMIN_EMAIL}${NC}"
 fi
 
-# Test basic API connectivity
-echo -e "${YELLOW}🔗 Testing API connectivity...${NC}"
-if curl -s -o /dev/null -w "%{http_code}" "${API_BASE_URL}/api" | grep -q "200\|404"; then
-    echo -e "${GREEN}✅ API is accessible${NC}"
+# Test basic server connectivity
+echo -e "${YELLOW}🔗 Testing server connectivity...${NC}"
+if curl -s -o /dev/null -w "%{http_code}" "${API_BASE_URL}" | grep -q "200\|404"; then
+    echo -e "${GREEN}✅ Server is reachable${NC}"
 else
-    echo -e "${RED}❌ API is not accessible${NC}"
+    echo -e "${RED}❌ Server is not reachable${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}🎉 Initialization complete!${NC}"
+echo -e "${GREEN}🎉 Server initialization complete!${NC}"
 echo -e "${BLUE}💡 Run './tests/_auth.sh' to authenticate and get tokens${NC}"

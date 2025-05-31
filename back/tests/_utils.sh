@@ -35,13 +35,15 @@ make_request() {
 
     if [ -n "$data" ]; then
         data_param="-d '$data'"
+        content_type="application/ld+json"
     else
         data_param=""
+        content_type="application/json"
     fi
 
     # Build curl command
     cmd="curl -s -X $method \"$API_BASE_URL$endpoint\" \
-        -H \"Content-Type: application/json\" \
+        -H \"Content-Type: $content_type\" \
         $auth_header \
         $data_param \
         -w \"HTTPSTATUS:%{http_code}\""

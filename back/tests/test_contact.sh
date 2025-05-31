@@ -11,16 +11,16 @@ load_auth_tokens
 
 echo -e "${BLUE}📧 Testing Contact Requests API Endpoints${NC}"
 
-# Test 1: POST /api/contact_requests (Public - anyone can submit)
+# Test 1: POST /api/contact/admissions (Public - anyone can submit)
 echo -e "${BLUE}📝 Test 1: Submit Contact Request (Public)${NC}"
 contact_data='{
-    "name": "John Test",
+    "firstName": "John",
+    "lastName": "Test",
     "email": "john.test@example.com",
-    "subject": "API Test Contact",
-    "message": "This is a test contact request submitted via API"
+    "message": "This is a test contact request submitted via API",
 }'
 
-make_request "POST" "/api/contact_requests" "$contact_data" "false" "Submitting contact request"
+make_request "POST" "/api/contact/admissions" "$contact_data" "false" "Submitting contact request"
 submit_status=$?
 
 if is_success $submit_status; then
