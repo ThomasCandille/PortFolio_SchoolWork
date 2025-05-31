@@ -51,7 +51,7 @@
           "icon": string
         }
       ],
-      "year": string,
+      "yearOfStudy": string,
       "students": [
         {
           "id": int,
@@ -94,7 +94,7 @@
   "shortDescription": string,
   "technologies": ["/api/technologies/{id}"],
   "students": ["/api/students/{id}"],
-  "year": string,
+  "yearOfStudy": string,
   "liveUrl": string,
   "githubUrl": string,
   "status": string,
@@ -138,7 +138,7 @@
       "id": int,
       "name": string,
       "email": string,
-      "year": string,
+      "yearOfStudy": string,
       "bio": string,
       "projects": [
         {
@@ -174,7 +174,7 @@
 {
   "name": string,
   "email": string,
-  "year": string,
+  "yearOfStudy": string,
   "bio": string
 }
 ```

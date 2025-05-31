@@ -389,9 +389,9 @@ use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 
 // Configure sorting options
 #[ApiFilter(OrderFilter::class, properties: [
-    'createdAt' => 'DESC',             // Allow sorting by creation date (default DESC)
+    'createdAt' => 'DESC',            // Allow sorting by creation date (default DESC)
     'title' => 'ASC',                 // Allow sorting by title (default ASC)
-    'year' => 'DESC'                   // Allow sorting by year
+    'yearOfStudy' => 'DESC'           // Allow sorting by yearOfStudy
 ])]
 
 // Configure range filtering for dates and numbers

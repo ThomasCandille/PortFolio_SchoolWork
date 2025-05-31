@@ -80,9 +80,9 @@ class SeedTestDataCommand extends Command
         $io->section('Creating Students');
 
         $studentsData = [
-            ['name' => 'Alice Johnson', 'email' => 'alice@example.com', 'year' => '2024', 'bio' => 'Frontend developer passionate about React and UX design.'],
-            ['name' => 'Bob Smith', 'email' => 'bob@example.com', 'year' => '2024', 'bio' => 'Full-stack developer with expertise in PHP and JavaScript.'],
-            ['name' => 'Carol Davis', 'email' => 'carol@example.com', 'year' => '2023', 'bio' => 'Backend developer specializing in API development and databases.'],
+            ['name' => 'Alice Johnson', 'email' => 'alice@example.com', 'yearOfStudy' => '1', 'bio' => 'Frontend developer passionate about React and UX design.'],
+            ['name' => 'Bob Smith', 'email' => 'bob@example.com', 'yearOfStudy' => '2', 'bio' => 'Full-stack developer with expertise in PHP and JavaScript.'],
+            ['name' => 'Carol Davis', 'email' => 'carol@example.com', 'yearOfStudy' => '3', 'bio' => 'Backend developer specializing in API development and databases.'],
         ];
 
         $students = [];
@@ -90,7 +90,7 @@ class SeedTestDataCommand extends Command
             $student = new Student();
             $student->setName($data['name']);
             $student->setEmail($data['email']);
-            $student->setYear($data['year']);
+            $student->setYearOfStudy($data['yearOfStudy']);
             $student->setBio($data['bio']);
 
             $this->entityManager->persist($student);
@@ -111,7 +111,7 @@ class SeedTestDataCommand extends Command
                 'title' => 'Portfolio Website',
                 'shortDescription' => 'A modern portfolio website built with React and TypeScript',
                 'description' => 'This project showcases a responsive portfolio website with modern design principles, built using React and TypeScript for the frontend.',
-                'year' => '2024',
+                'yearOfStudy' => '1',
                 'status' => 'published',
                 'liveUrl' => 'https://portfolio.example.com',
                 'githubUrl' => 'https://github.com/example/portfolio',
@@ -122,7 +122,7 @@ class SeedTestDataCommand extends Command
                 'title' => 'E-commerce API',
                 'shortDescription' => 'RESTful API for e-commerce platform using Symfony',
                 'description' => 'A comprehensive e-commerce API built with Symfony and API Platform, featuring user authentication, product management, and order processing.',
-                'year' => '2024',
+                'yearOfStudy' => '2',
                 'status' => 'published',
                 'githubUrl' => 'https://github.com/example/ecommerce-api',
                 'techIndices' => [2, 3, 4], // PHP, Symfony, MySQL
@@ -132,7 +132,7 @@ class SeedTestDataCommand extends Command
                 'title' => 'Task Management App',
                 'shortDescription' => 'Full-stack task management application',
                 'description' => 'A collaborative task management application with real-time updates, built with React frontend and Symfony backend.',
-                'year' => '2023',
+                'yearOfStudy' => '3',
                 'status' => 'draft',
                 'techIndices' => [0, 1, 2, 3], // React, TypeScript, PHP, Symfony
                 'studentIndices' => [0, 1] // Alice, Bob
@@ -144,7 +144,7 @@ class SeedTestDataCommand extends Command
             $project->setTitle($data['title']);
             $project->setShortDescription($data['shortDescription']);
             $project->setDescription($data['description']);
-            $project->setYear($data['year']);
+            $project->setYearOfStudy($data['yearOfStudy']);
             $project->setStatus($data['status']);
 
             if (isset($data['liveUrl'])) {

@@ -63,9 +63,9 @@ class Project
 
     #[ORM\Column(length: 10)]
     #[Assert\NotBlank]
-    #[Assert\Regex(pattern: '/^\d{4}$/', message: 'Year must be a 4-digit number')]
+    #[Assert\Regex(pattern: '/^\d{1}$/', message: 'Year of study must be a 1-digit number')]
     #[Groups(['project:read', 'project:write'])]
-    private ?string $year = null;
+    private ?string $yearOfStudy = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Assert\Url]
@@ -179,14 +179,14 @@ class Project
         return $this;
     }
 
-    public function getYear(): ?string
+    public function getYearOfStudy(): ?string
     {
-        return $this->year;
+        return $this->yearOfStudy;
     }
 
-    public function setYear(string $year): static
+    public function setYearOfStudy(string $yearOfStudy): static
     {
-        $this->year = $year;
+        $this->yearOfStudy = $yearOfStudy;
 
         return $this;
     }
