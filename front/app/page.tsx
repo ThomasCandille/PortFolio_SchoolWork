@@ -1,11 +1,12 @@
-import Navbar from '@/component/Navbar';
+
 import FeaturedProject from '../component/FeaturedProject';
+import DisplayProject from '@/component/DisplayProject';
 
 export default function Home() {
   return (
     <div>
-        <Navbar />
         <FeaturedProject />
+        <DisplayProject />
     </div>
   );
 }
