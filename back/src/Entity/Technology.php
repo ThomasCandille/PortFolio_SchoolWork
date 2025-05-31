@@ -8,18 +8,15 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Delete;
-use App\Repository\StudentRepository;
+use App\Repository\TechnologyRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
-#[ORM\Entity(repositoryClass: StudentRepository::class)]
+#[ORM\Entity(repositoryClass: TechnologyRepository::class)]
 #[ORM\HasLifecycleCallbacks]
-#[UniqueEntity(fields: ['email'], message: 'This email is already taken.')]
 #[ApiResource(
     operations: [
         new GetCollection(),
@@ -28,53 +25,45 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
         new Put(security: "is_granted('ROLE_ADMIN')"),
         new Delete(security: "is_granted('ROLE_ADMIN')")
     ],
-    normalizationContext: ['groups' => ['student:read']],
-    denormalizationContext: ['groups' => ['student:write']]
+    normalizationContext: ['groups' => ['technology:read']],
+    denormalizationContext: ['groups' => ['technology:write']]
 )]
-class Student
+class Technology
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['student:read', 'project:read'])]
+    #[Groups(['technology:read', 'project:read'])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 100)]
     #[Assert\NotBlank]
-    #[Assert\Length(min: 2, max: 255)]
-    #[Groups(['student:read', 'student:write', 'project:read'])]
+    #[Assert\Length(min: 2, max: 100)]
+    #[Groups(['technology:read', 'technology:write', 'project:read'])]
     private ?string $name = null;
 
-    #[ORM\Column(length: 180)]
+    #[ORM\Column(length: 50)]
     #[Assert\NotBlank]
-    #[Assert\Email]
-    #[Groups(['student:read', 'student:write', 'project:read'])]
-    private ?string $email = null;
+    #[Assert\Choice(choices: ['Frontend', 'Backend', 'Database', 'DevOps', 'Mobile', 'Design', 'Other'])]
+    #[Groups(['technology:read', 'technology:write'])]
+    private ?string $category = null;
 
-    #[ORM\Column(length: 10)]
-    #[Assert\NotBlank]
-    #[Assert\Regex(pattern: '/^\d{4}$/', message: 'Year must be a 4-digit number')]
-    #[Groups(['student:read', 'student:write', 'project:read'])]
-    private ?string $year = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Assert\Length(max: 1000)]
-    #[Groups(['student:read', 'student:write'])]
-    private ?string $bio = null;
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['technology:read', 'technology:write', 'project:read'])]
+    private ?string $icon = null;
 
     #[ORM\Column]
-    #[Groups(['student:read'])]
+    #[Groups(['technology:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
-    #[Groups(['student:read'])]
+    #[Groups(['technology:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
 
     /**
      * @var Collection<int, Project>
      */
-    #[ORM\ManyToMany(targetEntity: Project::class, mappedBy: 'students')]
-    #[Groups(['student:read'])]
+    #[ORM\ManyToMany(targetEntity: Project::class, mappedBy: 'technologies')]
     private Collection $projects;
 
     public function __construct()
@@ -99,38 +88,26 @@ class Student
         return $this;
     }
 
-    public function getEmail(): ?string
+    public function getCategory(): ?string
     {
-        return $this->email;
+        return $this->category;
     }
 
-    public function setEmail(string $email): static
+    public function setCategory(string $category): static
     {
-        $this->email = $email;
+        $this->category = $category;
 
         return $this;
     }
 
-    public function getYear(): ?string
+    public function getIcon(): ?string
     {
-        return $this->year;
+        return $this->icon;
     }
 
-    public function setYear(string $year): static
+    public function setIcon(?string $icon): static
     {
-        $this->year = $year;
-
-        return $this;
-    }
-
-    public function getBio(): ?string
-    {
-        return $this->bio;
-    }
-
-    public function setBio(?string $bio): static
-    {
-        $this->bio = $bio;
+        $this->icon = $icon;
 
         return $this;
     }
@@ -171,7 +148,7 @@ class Student
     {
         if (!$this->projects->contains($project)) {
             $this->projects->add($project);
-            $project->addStudent($this);
+            $project->addTechnology($this);
         }
 
         return $this;
@@ -180,7 +157,7 @@ class Student
     public function removeProject(Project $project): static
     {
         if ($this->projects->removeElement($project)) {
-            $project->removeStudent($this);
+            $project->removeTechnology($this);
         }
 
         return $this;
