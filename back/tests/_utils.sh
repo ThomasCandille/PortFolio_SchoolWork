@@ -55,6 +55,9 @@ make_request() {
     http_code=$(echo "$response" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
     body=$(echo "$response" | sed -e 's/HTTPSTATUS:.*//')
 
+    # Export for other functions to use
+    export LAST_HTTP_STATUS=$http_code
+
     echo -e "   Status: $http_code"
 
     # Pretty print JSON if possible
@@ -92,7 +95,7 @@ is_client_error() {
 
 # Helper function to verify unauthorized access is properly blocked
 verify_unauthorized() {
-    local status_code=$1
+    local status_code=${1:-$LAST_HTTP_STATUS}
     if [ $status_code -eq 401 ] || [ $status_code -eq 403 ]; then
         echo -e "${GREEN}✅ Correctly blocked unauthorized access${NC}"
         return 0
