@@ -1,0 +1,54 @@
+---
+description: Assists with TanStack Query implementation for API calls, caching strategies, pagination, and optimistic updates across all data-driven components.
+globs:
+alwaysApply: false
+---
+# Data Fetching with TanStack Query
+
+## Query Implementation
+- Use TanStack Query for all server state management
+- Implement proper query keys with hierarchical structure
+- Use `useQuery` for data fetching with automatic caching
+- Leverage `useMutation` for data modifications
+- Implement proper error handling with onError callbacks
+
+## Query Key Patterns
+```typescript
+const queryKeys = {
+  projects: ['projects'] as const,
+  projectsList: (filters: ProjectFilters) => [...queryKeys.projects, 'list', filters] as const,
+  projectDetail: (id: string) => [...queryKeys.projects, 'detail', id] as const,
+  students: ['students'] as const,
+  studentsList: (filters: StudentFilters) => [...queryKeys.students, 'list', filters] as const,
+};
+```
+
+## Caching Strategy
+- Set appropriate `staleTime` and `cacheTime` for different data types
+- Use `refetchOnWindowFocus` strategically (disabled for stable data)
+- Implement background refetching for real-time data
+- Use `refetchInterval` for dashboard statistics and admin data
+
+## Loading States
+- Use `isLoading` for initial loading states
+- Use `isFetching` for background updates
+- Implement skeleton loaders for better UX
+- Handle `error` states with fallback UI
+
+## Optimistic Updates
+- Use `useMutation` with `onMutate` for optimistic updates
+- Implement proper rollback on mutation failure
+- Update query cache manually when needed with `queryClient.setQueryData`
+- Invalidate related queries after successful mutations
+
+## Pagination & Infinite Queries
+- Use `useInfiniteQuery` for paginated lists
+- Implement proper `getNextPageParam` logic
+- Handle loading states for infinite scroll
+- Use `hasNextPage` and `isFetchingNextPage` appropriately
+
+## Error Handling
+- Implement global error handling in QueryClient configuration
+- Use retry logic with exponential backoff
+- Display user-friendly error messages
+- Handle network errors gracefully

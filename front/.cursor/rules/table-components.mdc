@@ -1,0 +1,66 @@
+---
+description: Guides creation of admin data tables using TanStack Table. Covers sorting, filtering, pagination, row actions, and responsive table design.
+globs:
+alwaysApply: false
+---
+# Table Component Standards
+
+## TanStack Table Implementation
+- Use TanStack Table for all data tables in admin interfaces
+- Implement headless table patterns for maximum flexibility
+- Define column configurations with proper TypeScript typing
+- Use table state management for sorting, filtering, and pagination
+
+## Column Definition Patterns
+```typescript
+const columns: ColumnDef<ProjectType>[] = [
+  {
+    accessorKey: 'title',
+    header: 'Project Title',
+    cell: ({ row }) => (
+      <div className="font-medium">{row.getValue('title')}</div>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => <StatusBadge status={row.getValue('status')} />,
+  },
+];
+```
+
+## Sorting & Filtering
+- Implement server-side sorting for large datasets
+- Use client-side sorting for smaller data sets
+- Create reusable filter components (search, select, date range)
+- Handle multiple column sorting with proper state management
+
+## Pagination
+- Implement server-side pagination for performance
+- Use consistent pagination UI across all tables
+- Display total records and current page information
+- Handle page size changes appropriately
+
+## Row Actions
+- Implement row selection with checkboxes
+- Create action dropdowns for edit/delete/view operations
+- Handle bulk actions for multiple row selection
+- Use confirmation dialogs for destructive actions
+
+## Responsive Design
+- Implement mobile-responsive table layouts
+- Use horizontal scroll for wide tables on mobile
+- Consider card layouts for mobile table alternatives
+- Hide non-essential columns on smaller screens
+
+## Loading & Empty States
+- Implement skeleton loaders during data fetching
+- Create meaningful empty state messages
+- Handle error states with retry options
+- Show loading indicators for row-level actions
+
+## Accessibility
+- Use proper ARIA labels for table elements
+- Implement keyboard navigation for table interactions
+- Ensure screen reader compatibility
+- Use semantic table markup (thead, tbody, th, td)

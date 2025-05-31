@@ -1,0 +1,87 @@
+---
+description: Guides admin panel development with security, authentication, dashboard design, file uploads, and proper user feedback patterns.
+globs:
+alwaysApply: false
+---
+# Admin Interface Standards
+
+## Authentication & Security
+- Implement proper JWT token handling with refresh tokens
+- Use secure storage for authentication tokens
+- Implement session timeout and automatic logout
+- Add CSRF protection for all state-changing operations
+- Use role-based access control (RBAC) for different admin levels
+- Implement rate limiting for sensitive operations
+
+## Dashboard Design
+- Create modular dashboard widgets for different metrics
+- Implement real-time data updates where appropriate
+- Use proper loading states for dashboard components
+- Design responsive layouts that work on mobile devices
+- Provide quick action shortcuts for common tasks
+
+## Data Management Interfaces
+- Use consistent CRUD patterns across all admin sections
+- Implement bulk operations with proper confirmation dialogs
+- Add search and filtering capabilities to all data lists
+- Use pagination for large data sets
+- Implement export functionality for important data
+
+## Form Patterns for Admin
+```typescript
+// Standard admin form pattern
+const AdminForm = () => {
+  const { mutate, isLoading } = useMutation(saveData, {
+    onSuccess: () => {
+      toast.success('Data saved successfully');
+      router.push('/admin/list');
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    }
+  });
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Form fields */}
+      <div className="flex gap-4">
+        <Button type="button" variant="outline" onClick={() => router.back()}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+    </form>
+  );
+};
+```
+
+## File Upload Handling
+- Implement drag-and-drop file upload interfaces
+- Add file type and size validation
+- Show upload progress indicators
+- Handle multiple file uploads efficiently
+- Implement image preview and cropping functionality
+- Use proper error handling for failed uploads
+
+## State Management
+- Use optimistic updates for better user experience
+- Implement proper error handling and rollback
+- Cache frequently accessed data appropriately
+- Handle concurrent editing scenarios
+- Implement auto-save for long forms
+
+## User Feedback
+- Use toast notifications for action feedback
+- Implement confirmation dialogs for destructive actions
+- Show loading states for all async operations
+- Provide clear error messages with actionable solutions
+- Use skeleton loaders for better perceived performance
+
+## Accessibility in Admin
+- Ensure all admin functions work with keyboard navigation
+- Use proper ARIA labels for complex admin widgets
+- Implement screen reader support for data tables
+- Use semantic HTML for admin form structures
+- Test admin interface with screen readers

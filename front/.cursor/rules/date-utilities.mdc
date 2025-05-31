@@ -1,0 +1,60 @@
+---
+description: Assists with date handling using date-fns. Covers formatting, validation, timezone handling, and portfolio-specific date patterns.
+globs:
+alwaysApply: false
+---
+# Date Handling with date-fns
+
+## Library Usage
+- Use date-fns for all date manipulation and formatting
+- Import only the functions you need for tree-shaking
+- Use date-fns/locale for internationalization support
+- Prefer date-fns over native Date methods for consistency
+
+## Common Patterns
+```typescript
+import { format, parseISO, isValid, differenceInDays } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+// Format dates consistently
+const formatDisplayDate = (date: string | Date) => {
+  const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+  return isValid(parsedDate) ? format(parsedDate, 'dd/MM/yyyy') : 'Invalid date';
+};
+
+// Relative time formatting
+const formatRelativeTime = (date: string | Date) => {
+  const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+  return formatDistanceToNow(parsedDate, { addSuffix: true, locale: fr });
+};
+```
+
+## Date Validation
+- Always validate dates before formatting or manipulation
+- Use `isValid()` function to check date validity
+- Handle invalid dates gracefully with fallback displays
+- Validate date ranges and constraints
+
+## Timezone Handling
+- Use UTC dates for storage and API communication
+- Convert to local time only for display purposes
+- Be consistent with timezone handling across the application
+- Document timezone assumptions in comments
+
+## Portfolio-Specific Patterns
+- Format project creation dates consistently across pages
+- Handle academic year date ranges (September to June)
+- Display student graduation years properly
+- Format contact form timestamps in admin interface
+
+## Performance Considerations
+- Import only needed date-fns functions to reduce bundle size
+- Cache formatted dates when rendering large lists
+- Use memo for expensive date calculations
+- Consider using date-fns-tz for complex timezone operations
+
+## Localization
+- Use French locale for date formatting when appropriate
+- Support multiple date formats based on user preferences
+- Implement proper month and day name translations
+- Handle different date input formats from users

@@ -1,0 +1,72 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# TypeScript Standards
+
+## Type Definitions
+- Define interfaces for all data structures
+- Use type aliases for complex union types
+- Create utility types for common patterns
+- Export types alongside components for reusability
+- Use generic types for reusable components and functions
+
+## Naming Conventions
+- Use PascalCase for types, interfaces, and components
+- Use camelCase for variables, functions, and methods
+- Use SCREAMING_SNAKE_CASE for constants
+- Prefix interfaces with descriptive nouns (User, Project, not IUser)
+- Use descriptive names that indicate purpose
+
+## Type Safety Patterns
+```typescript
+// Use discriminated unions for state management
+type LoadingState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: Project[] }
+  | { status: 'error'; error: string };
+
+// Use branded types for IDs
+type ProjectId = string & { readonly brand: unique symbol };
+type StudentId = string & { readonly brand: unique symbol };
+
+// Use strict function signatures
+type ApiResponse<T> = {
+  data: T;
+  status: number;
+  message: string;
+};
+```
+
+## Error Handling Types
+- Create custom error types for different error scenarios
+- Use Result types for operations that can fail
+- Implement proper error boundaries with typed errors
+- Use discriminated unions for error states
+
+## API Integration
+- Define TypeScript interfaces for all API responses
+- Use Zod schemas to validate API data at runtime
+- Create type-safe API client functions
+- Implement proper typing for query parameters and request bodies
+
+## Component Props
+- Always define props interfaces for components
+- Use optional properties with default values appropriately
+- Implement proper children typing when needed
+- Use generic props for reusable components
+
+## Utility Types Usage
+- Use `Partial<T>` for optional update objects
+- Use `Pick<T, K>` and `Omit<T, K>` for type transformation
+- Use `Record<K, V>` for key-value mappings
+- Implement custom utility types for domain-specific patterns
+
+## Strict TypeScript Config
+- Enable strict mode in tsconfig.json
+- Use `noImplicitAny` and `strictNullChecks`
+- Enable `exactOptionalPropertyTypes`
+- Use `noUncheckedIndexedAccess` for safer array access
+- Enable `noImplicitReturns` and `noFallthroughCasesInSwitch`

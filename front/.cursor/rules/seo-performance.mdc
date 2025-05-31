@@ -1,0 +1,64 @@
+---
+description: Optimizes portfolio pages for search engines and performance. Covers meta tags, Core Web Vitals, image optimization, and structured data.
+globs:
+alwaysApply: false
+---
+# SEO & Performance Optimization
+
+## Meta Tags & SEO
+- Implement dynamic meta titles and descriptions for all pages
+- Use structured data (JSON-LD) for projects and students
+- Create proper Open Graph tags for social media sharing
+- Implement canonical URLs to prevent duplicate content
+- Generate XML sitemap automatically
+- Use proper heading hierarchy (h1, h2, h3) for content structure
+
+## Image Optimization
+- Use Next.js Image component for all images
+- Implement WebP format with fallbacks
+- Add proper alt tags for all images
+- Use lazy loading for images below the fold
+- Optimize image sizes for different screen resolutions
+- Implement image compression and quality settings
+
+## Performance Best Practices
+- Minimize bundle size with dynamic imports
+- Use React.memo() for expensive component renders
+- Implement proper loading strategies (eager vs lazy)
+- Optimize fonts with next/font
+- Use proper caching strategies for static assets
+- Minimize JavaScript execution time
+
+## Core Web Vitals
+- Optimize Largest Contentful Paint (LCP) with image optimization
+- Improve First Input Delay (FID) with code splitting
+- Minimize Cumulative Layout Shift (CLS) with proper placeholders
+- Monitor and optimize Time to First Byte (TTFB)
+
+## Page Structure for Portfolio
+```typescript
+// Example meta data for project pages
+const projectMeta = {
+  title: `${project.title} - ${school.name} Portfolio`,
+  description: `Discover ${project.title}, a ${project.technologies.join(', ')} project by ${project.students.join(', ')}`,
+  openGraph: {
+    title: project.title,
+    description: project.description,
+    images: [{ url: project.imageUrl, alt: project.title }],
+    type: 'article'
+  }
+};
+```
+
+## URL Structure
+- Use SEO-friendly URLs (/projects/web-development-2024)
+- Implement proper breadcrumb navigation
+- Use descriptive slugs for project and student pages
+- Implement proper 404 error handling
+- Set up redirects for changed URLs
+
+## Analytics & Monitoring
+- Implement Google Analytics or privacy-focused alternatives
+- Monitor Core Web Vitals with Next.js analytics
+- Track user interactions for portfolio engagement
+- Set up error monitoring for production issues
