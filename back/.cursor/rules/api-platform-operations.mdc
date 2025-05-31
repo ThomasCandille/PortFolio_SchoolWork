@@ -1,0 +1,574 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# API Platform Operations Configuration
+
+## Description
+This rule provides comprehensive guidelines for configuring API Platform operations, limiting operations, and customizing API behavior. Understanding operations is crucial for controlling what actions can be performed on your entities and how they're exposed to different user types.
+
+## Understanding API Platform Operations
+
+**What are Operations?**
+Operations in API Platform represent HTTP endpoints that can be performed on your entities. Each operation corresponds to a specific HTTP method and URL pattern, automatically handling request/response serialization, validation, and database operations.
+
+**Operation Categories:**
+- **Collection Operations**: Work with multiple entities (e.g., GET /projects)
+- **Item Operations**: Work with single entities (e.g., GET /projects/1)
+- **Custom Operations**: Special endpoints with custom logic
+
+**Default Behavior:**
+Without configuration, API Platform exposes all CRUD operations for every entity. This rule teaches you how to control and customize this behavior.
+
+## Operation Types Available
+
+### Basic Operations Explained
+
+```php
+// Collection Operations (work with multiple entities)
+new GetCollection()     // GET /entities - Retrieve a list of entities
+new Post()             // POST /entities - Create a new entity
+
+// Item Operations (work with single entities)
+new Get()              // GET /entities/{id} - Retrieve single entity
+new Put()              // PUT /entities/{id} - Replace entire entity
+new Patch()            // PATCH /entities/{id} - Update specific fields
+new Delete()           // DELETE /entities/{id} - Remove entity
+```
+
+**When to use each operation:**
+- **GetCollection**: For listing, searching, and filtering entities
+- **Get**: For displaying detailed views of single entities
+- **Post**: For creating new entities from forms or API calls
+- **Put**: For complete entity replacement (rare in web apps)
+- **Patch**: For partial updates (most common update method)
+- **Delete**: For entity removal (often soft delete is preferred)
+
+## Limiting Operations Strategy
+
+**Why limit operations?**
+- **Security**: Prevent unauthorized actions
+- **Business Logic**: Some entities should be read-only for certain users
+- **API Design**: Expose only what's needed for your application
+
+### Example 1: Read-only API Resource
+```php
+#[ApiResource(
+    operations: [
+        new GetCollection(),    // Users can list technologies
+        new Get()              // Users can view individual technologies
+    ]
+    // No Post, Put, Patch, or Delete - completely read-only
+)]
+class Technology
+{
+    // Only GET operations available
+    // Perfect for reference data that admins manage elsewhere
+}
+```
+
+**Use Case**: Technologies are managed by administrators through a separate admin interface, but the public API should only allow reading them for displaying project tech stacks.
+
+### Example 2: No Delete Operation
+```php
+#[ApiResource(
+    operations: [
+        new GetCollection(),    // List students
+        new Get(),             // View student details
+        new Post(),            // Add new students
+        new Put(),             // Update student information
+        new Patch()            // Partial updates
+        // Deliberately omitting Delete for data preservation
+    ]
+)]
+class Student
+{
+    // All operations except DELETE
+    // Preserves historical data while allowing management
+}
+```
+
+**Use Case**: Students should never be deleted from the system for historical data integrity, but they can be deactivated through status updates.
+
+### Example 3: Custom Operation Paths
+```php
+#[ApiResource(
+    operations: [
+        // Custom URI templates for better API organization
+        new GetCollection(uriTemplate: '/admin/projects'),           // GET /api/admin/projects
+        new Get(uriTemplate: '/admin/projects/{id}'),               // GET /api/admin/projects/1
+        new Post(uriTemplate: '/admin/projects'),                   // POST /api/admin/projects
+        new Put(uriTemplate: '/admin/projects/{id}'),               // PUT /api/admin/projects/1
+        new Delete(uriTemplate: '/admin/projects/{id}')             // DELETE /api/admin/projects/1
+    ]
+)]
+class Project
+{
+    // Custom URI templates clearly separate admin operations
+    // Makes API more intuitive and easier to secure
+}
+```
+
+**Benefits of Custom URI Templates:**
+- **Clear API Structure**: Separate public and admin endpoints
+- **Easier Security**: Different URL patterns for different access levels
+- **Better Documentation**: Clear distinction between user types
+- **Frontend Routing**: Easier to handle in frontend applications
+
+## Operation Configuration per Project Entities
+
+### User Entity (Admin Only)
+```php
+#[ApiResource(
+    operations: [
+        // Custom authentication endpoints
+        new Post(
+            uriTemplate: '/auth/register',              // POST /api/auth/register
+            processor: UserRegistrationProcessor::class // Custom logic for user creation
+        ),
+        new Post(
+            uriTemplate: '/auth/login',                 // POST /api/auth/login
+            processor: UserLoginProcessor::class        // Custom logic for authentication
+        )
+        // No standard CRUD operations - users are managed through special endpoints
+    ]
+)]
+class User implements UserInterface
+{
+    // Only registration and login operations
+    // Standard CRUD would be security risk for user management
+}
+```
+
+**Why custom processors?**
+- **Authentication Logic**: Login requires special JWT token generation
+- **Password Hashing**: Registration needs secure password handling
+- **Validation**: Custom business rules for user creation
+- **Response Format**: Special response format for authentication
+
+### Project Entity (Public + Admin)
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC OPERATIONS - No authentication required
+        new GetCollection(
+            uriTemplate: '/projects',                           // Public project listing
+            normalizationContext: ['groups' => ['project:read:public']]  // Limited data exposure
+        ),
+        new Get(
+            uriTemplate: '/projects/{id}',                      // Public project details
+            normalizationContext: ['groups' => ['project:read:public']]
+        ),
+
+        // ADMIN OPERATIONS - Require ROLE_ADMIN
+        new GetCollection(
+            uriTemplate: '/admin/projects',                     // Admin project management
+            security: "is_granted('ROLE_ADMIN')",              // Security constraint
+            normalizationContext: ['groups' => ['project:read:admin']]   // Full data access
+        ),
+        new Post(
+            uriTemplate: '/admin/projects',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['project:write']]      // Control input fields
+        ),
+        new Put(
+            uriTemplate: '/admin/projects/{id}',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['project:write']]
+        ),
+        new Patch(
+            uriTemplate: '/admin/projects/{id}/status',         // Special status update endpoint
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['project:status']]     // Only status field
+        ),
+        new Delete(
+            uriTemplate: '/admin/projects/{id}',
+            security: "is_granted('ROLE_ADMIN')"
+        )
+    ]
+)]
+class Project
+{
+    // Dual-purpose entity: public viewing + admin management
+    // Different serialization groups control data exposure
+}
+```
+
+**Serialization Groups Explained:**
+- **project:read:public**: Only safe fields for public consumption
+- **project:read:admin**: All fields including sensitive admin data
+- **project:write**: Fields that can be modified through forms
+- **project:status**: Only status field for quick status changes
+
+### Student Entity (Public Read, Admin Write)
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC READ - Basic student information for project attribution
+        new GetCollection(
+            uriTemplate: '/students',
+            normalizationContext: ['groups' => ['student:read']]
+        ),
+
+        // ADMIN MANAGEMENT - Full student lifecycle management
+        new GetCollection(
+            uriTemplate: '/admin/students',
+            security: "is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['student:read:admin']]
+        ),
+        new Post(
+            uriTemplate: '/admin/students',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['student:write']]
+        ),
+        new Put(
+            uriTemplate: '/admin/students/{id}',
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['student:write']]
+        ),
+        new Delete(
+            uriTemplate: '/admin/students/{id}',
+            security: "is_granted('ROLE_ADMIN')"
+        )
+    ]
+)]
+class Student
+{
+    // Public can see basic info for project attribution
+    // Admin can fully manage student records
+}
+```
+
+### Technology Entity (Public Read, Admin Write)
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC READ - Technology list for filtering and display
+        new GetCollection(
+            uriTemplate: '/technologies'
+            // No serialization groups - all technology data is public
+        ),
+
+        // ADMIN WRITE - Technology management
+        new Post(
+            uriTemplate: '/admin/technologies',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Put(
+            uriTemplate: '/admin/technologies/{id}',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Delete(
+            uriTemplate: '/admin/technologies/{id}',
+            security: "is_granted('ROLE_ADMIN')"
+        )
+    ]
+)]
+class Technology
+{
+    // Reference data: public read access, admin-only modifications
+    // No sensitive data, so no need for complex serialization groups
+}
+```
+
+### ContactRequest Entity (Post Only)
+```php
+#[ApiResource(
+    operations: [
+        // PUBLIC CONTACT FORM - Anyone can submit inquiries
+        new Post(
+            uriTemplate: '/contact/admissions',
+            processor: ContactRequestProcessor::class,          // Custom processor for email handling
+            denormalizationContext: ['groups' => ['contact:write']]
+        ),
+
+        // ADMIN INQUIRY MANAGEMENT
+        new GetCollection(
+            uriTemplate: '/admin/contacts',
+            security: "is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['contact:read']]
+        ),
+        new Patch(
+            uriTemplate: '/admin/contacts/{id}/status',         // Update inquiry status
+            security: "is_granted('ROLE_ADMIN')",
+            denormalizationContext: ['groups' => ['contact:status']]
+        )
+    ]
+)]
+class ContactRequest
+{
+    // Asymmetric operations: public create, admin read/manage
+    // No public read access for privacy protection
+}
+```
+
+**Why no GET operations for contacts?**
+- **Privacy**: Contact information should not be publicly accessible
+- **GDPR Compliance**: Limit access to personal data
+- **Business Logic**: Only admins need to see inquiries
+
+## Custom Operations Deep Dive
+
+### Custom Collection Operation
+```php
+// Special endpoint for featured projects
+new GetCollection(
+    uriTemplate: '/projects/featured',                  // Custom URL
+    controller: FeaturedProjectsController::class,     // Custom controller logic
+    normalizationContext: ['groups' => ['project:featured']]
+)
+```
+
+**Custom Controller Example:**
+```php
+<?php
+
+namespace App\Controller;
+
+use App\Repository\ProjectRepository;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+
+class FeaturedProjectsController extends AbstractController
+{
+    public function __construct(
+        private ProjectRepository $projectRepository
+    ) {}
+
+    public function __invoke(): array
+    {
+        // Custom business logic for featured projects
+        return $this->projectRepository->findFeaturedProjects();
+    }
+}
+```
+
+### Custom Item Operation
+```php
+// Special endpoint for publishing projects
+new Patch(
+    uriTemplate: '/admin/projects/{id}/publish',
+    controller: PublishProjectController::class,
+    security: "is_granted('ROLE_ADMIN')"
+)
+```
+
+**When to use custom operations:**
+- **Complex Business Logic**: When standard CRUD isn't enough
+- **Special Endpoints**: For actions that don't fit CRUD pattern
+- **Custom Responses**: When you need special response formats
+- **Workflow Actions**: For state transitions and approvals
+
+## Operation Filters for Enhanced Functionality
+
+### Search and Filter Configuration
+```php
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+
+#[ApiResource(
+    operations: [
+        new GetCollection(
+            uriTemplate: '/projects',
+            filters: [                                  // Enable filtering on this operation
+                SearchFilter::class,                    // Text search capabilities
+                OrderFilter::class,                     // Sorting capabilities
+                RangeFilter::class                      // Date/number range filtering
+            ]
+        )
+    ]
+)]
+
+// Configure what can be searched and how
+#[ApiFilter(SearchFilter::class, properties: [
+    'title' => 'partial',              // Partial match on title (LIKE %term%)
+    'description' => 'partial',        // Partial match on description
+    'technologies.name' => 'exact'     // Exact match on related technology names
+])]
+
+// Configure sorting options
+#[ApiFilter(OrderFilter::class, properties: [
+    'createdAt' => 'DESC',             // Allow sorting by creation date (default DESC)
+    'title' => 'ASC',                 // Allow sorting by title (default ASC)
+    'year' => 'DESC'                   // Allow sorting by year
+])]
+
+// Configure range filtering for dates and numbers
+#[ApiFilter(RangeFilter::class, properties: ['createdAt'])]
+
+class Project
+{
+    // Entity with comprehensive filtering capabilities
+    // Enables powerful search interfaces in frontend
+}
+```
+
+**Filter Usage Examples:**
+```bash
+# Search projects with "React" in title
+GET /api/projects?title=React
+
+# Find projects using specific technology
+GET /api/projects?technologies.name=PHP
+
+# Sort by creation date (newest first)
+GET /api/projects?order[createdAt]=desc
+
+# Filter projects created in 2024
+GET /api/projects?createdAt[after]=2024-01-01&createdAt[before]=2024-12-31
+
+# Combined filtering and sorting
+GET /api/projects?title=portfolio&order[createdAt]=desc&technologies.name=React
+```
+
+## Normalization Groups Strategy
+
+### Controlling Data Exposure
+```php
+class Project
+{
+    // Fields visible to everyone (public + admin)
+    #[Groups(['project:read:public', 'project:read:admin'])]
+    private ?string $title = null;
+
+    #[Groups(['project:read:public', 'project:read:admin'])]
+    private ?string $shortDescription = null;
+
+    // Fields only visible to admins
+    #[Groups(['project:read:admin'])]
+    private ?string $status = null;
+
+    #[Groups(['project:read:admin'])]
+    private ?\DateTimeImmutable $createdAt = null;
+
+    // Fields only for write operations (forms)
+    #[Groups(['project:write'])]
+    private ?string $description = null;
+
+    // Fields for specific operations
+    #[Groups(['project:status'])]
+    private ?string $status = null;
+}
+```
+
+**Group Naming Convention:**
+- `entity:read:context`: What data to expose when reading
+- `entity:write`: What data to accept when writing
+- `entity:action`: What data for specific actions
+
+## Best Practices for Operations
+
+### Security First
+```php
+// Always apply security constraints to admin operations
+new Post(
+    uriTemplate: '/admin/projects',
+    security: "is_granted('ROLE_ADMIN')",              // Require admin role
+    securityMessage: 'Access denied. Admin role required.'  // Custom error message
+)
+
+// Use object-level security when needed
+new Put(
+    uriTemplate: '/projects/{id}',
+    security: "is_granted('ROLE_ADMIN') or object.getOwner() == user"  // Admin or owner
+)
+```
+
+### Performance Optimization
+```php
+// Use specific serialization groups to limit data transfer
+new GetCollection(
+    uriTemplate: '/projects',
+    normalizationContext: [
+        'groups' => ['project:list'],           // Minimal data for listings
+        'enable_max_depth' => true              // Prevent infinite recursion
+    ]
+)
+
+// Limit collection size for performance
+new GetCollection(
+    uriTemplate: '/projects',
+    paginationMaxItemsPerPage: 50,             // Hard limit
+    paginationItemsPerPage: 20                 // Default page size
+)
+```
+
+### API Documentation
+```php
+// Add OpenAPI documentation for better API docs
+new Post(
+    uriTemplate: '/admin/projects',
+    openapi: new OpenApi(
+        summary: 'Create a new project',
+        description: 'Creates a new project with the provided data. Requires admin role.',
+        requestBody: new RequestBody(
+            description: 'Project data',
+            content: new \ArrayObject([
+                'application/json' => [
+                    'schema' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'title' => ['type' => 'string', 'example' => 'My Project'],
+                            'description' => ['type' => 'string']
+                        ]
+                    ]
+                ]
+            ])
+        )
+    )
+)
+```
+
+## Troubleshooting Common Issues
+
+### Operation Not Available
+**Problem**: Operation doesn't appear in API documentation
+**Solution**: Check that the operation is properly configured and the entity has the `#[ApiResource]` attribute
+
+### Access Denied Errors
+**Problem**: Getting 403 errors on operations
+**Solution**: Verify security constraints and ensure user has proper roles
+
+### Serialization Errors
+**Problem**: Getting circular reference errors
+**Solution**: Use proper serialization groups and enable max depth
+
+### Filter Not Working
+**Problem**: URL parameters not filtering results
+**Solution**: Ensure filters are properly configured with `#[ApiFilter]` attributes
+
+## Advanced Operation Patterns
+
+### Bulk Operations
+```php
+// Custom operation for bulk updates
+new Patch(
+    uriTemplate: '/admin/projects/bulk-status',
+    controller: BulkProjectStatusController::class,
+    security: "is_granted('ROLE_ADMIN')",
+    input: BulkStatusInput::class               // Custom input DTO
+)
+```
+
+### Nested Resource Operations
+```php
+// Operations for project comments (if implemented)
+new GetCollection(
+    uriTemplate: '/projects/{projectId}/comments',
+    controller: ProjectCommentsController::class
+)
+```
+
+### File Upload Operations
+```php
+// Special operation for file uploads
+new Post(
+    uriTemplate: '/admin/projects/{id}/images',
+    controller: ProjectImageUploadController::class,
+    security: "is_granted('ROLE_ADMIN')",
+    deserialize: false                          // Handle file upload manually
+)
+```
+
+This comprehensive guide should help you understand not just what to configure, but why and how each operation serves your portfolio project's specific needs.
