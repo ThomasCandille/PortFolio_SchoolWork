@@ -67,16 +67,6 @@ class ContactRequest
     #[Groups(['contact:read', 'contact:write'])]
     private ?string $message = null;
 
-    #[ORM\Column(length: 100)]
-    #[Assert\NotBlank]
-    #[Groups(['contact:read', 'contact:write'])]
-    private ?string $interestedProgram = null;
-
-    #[ORM\Column]
-    #[Assert\IsTrue(message: 'You must accept the GDPR consent to submit this form')]
-    #[Groups(['contact:write'])]
-    private bool $gdprConsent = false;
-
     #[ORM\Column(length: 20)]
     #[Assert\Choice(choices: ['new', 'read', 'replied', 'closed'])]
     #[Groups(['contact:admin', 'contact:write'])]
@@ -160,30 +150,6 @@ class ContactRequest
     public function setMessage(string $message): static
     {
         $this->message = $message;
-
-        return $this;
-    }
-
-    public function getInterestedProgram(): ?string
-    {
-        return $this->interestedProgram;
-    }
-
-    public function setInterestedProgram(string $interestedProgram): static
-    {
-        $this->interestedProgram = $interestedProgram;
-
-        return $this;
-    }
-
-    public function isGdprConsent(): bool
-    {
-        return $this->gdprConsent;
-    }
-
-    public function setGdprConsent(bool $gdprConsent): static
-    {
-        $this->gdprConsent = $gdprConsent;
 
         return $this;
     }
