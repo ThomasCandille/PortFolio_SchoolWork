@@ -71,6 +71,7 @@ if [ -n "$STUDENT_ID" ] && [ -n "$AUTH_TOKEN" ]; then
     update_data='{
         "name": "John Doe Updated",
         "email": "john.doe.updated@test.com",
+        "yearOfStudy": "1",
         "bio": "Updated bio via API"
     }'
 

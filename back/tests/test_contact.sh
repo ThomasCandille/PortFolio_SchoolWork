@@ -84,7 +84,7 @@ if [ -n "$CONTACT_ID" ] && [ -n "$AUTH_TOKEN" ]; then
         "lastName": "Test",
         "email": "john.test@example.com",
         "message": "This is a test contact request submitted via API",
-        "status": "processed",
+        "status": "read",
         "adminNotes": "Test note added via API"
     }'
 
