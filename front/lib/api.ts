@@ -2,6 +2,8 @@ import { ApiResponse } from "./types/api";
 import { Project, ProjectFormData } from "./types/project";
 import { Student, StudentFormData } from "./types/student";
 import { Technology, TechnologyFormData } from "./types/technology";
+import { LoginData, AuthResponse, User } from "./types/auth";
+import { authUtils } from "./auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -10,13 +12,30 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    // Get token from cookies for authenticated requests
+    const token = authUtils.getToken();
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(options.headers as Record<string, string>),
+    };
+
+    // Add authorization header if token exists
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
       ...options,
+      headers,
     });
+
+    // Handle authentication errors
+    if (response.status === 401) {
+      // Clear auth data on 401 and throw specific error
+      authUtils.clearAuth();
+      throw new Error("Authentication required");
+    }
 
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -25,6 +44,25 @@ class ApiClient {
     return response.json();
   }
 
+  // Authentication methods
+  async login(data: LoginData): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async logout(): Promise<void> {
+    await this.request("/api/auth/logout", {
+      method: "POST",
+    });
+  }
+
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>("/api/auth/me");
+  }
+
+  // Existing methods remain the same
   async getProjects(): Promise<ApiResponse<Project>> {
     return this.request<ApiResponse<Project>>("/api/projects");
   }
