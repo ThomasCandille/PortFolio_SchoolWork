@@ -274,15 +274,15 @@ use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
     'title' => 'partial',              // LIKE %search% on title
     'description' => 'partial',        // LIKE %search% on description
     'technologies.name' => 'exact',    // Exact match on related technology
-    'year' => 'exact',                 // Exact match on year
+    'yearOfStudy' => 'exact',          // Exact match on yearOfStudy
     'status' => 'exact'                // Exact match on status (for admin)
 ])]
 
 // Sorting configuration
 #[ApiFilter(OrderFilter::class, properties: [
-    'createdAt' => 'DESC',             // Most recent first (default)
+    'createdAt' => 'DESC',            // Most recent first (default)
     'title' => 'ASC',                 // Alphabetical sorting
-    'year' => 'DESC'                   // Newest year first
+    'yearOfStudy' => 'DESC'           // Newest yearOfStudy first
 ])]
 
 // Date range filtering
@@ -303,14 +303,14 @@ GET /api/projects?title=React
 # Find projects using specific technology
 GET /api/projects?technologies.name=TypeScript
 
-# Filter by year
-GET /api/projects?year=2024
+# Filter by yearOfStudy
+GET /api/projects?yearOfStudy=2024
 
 # Sort by creation date (newest first)
 GET /api/projects?order[createdAt]=desc
 
 # Complex filtering
-GET /api/projects?title=portfolio&technologies.name=React&order[year]=desc
+GET /api/projects?title=portfolio&technologies.name=React&order[yearOfStudy]=desc
 ```
 
 ## Access Control Patterns for Portfolio Project
@@ -420,9 +420,9 @@ class Student
     #[Groups(['student:read:admin', 'student:write'])]
     private ?string $email = null;
 
-    // Year visible to public for context
+    // Year of study visible to public for context
     #[Groups(['student:read:public', 'student:read:admin', 'student:write'])]
-    private ?string $year = null;
+    private ?string $yearOfStudy = null;
 
     // Bio only visible to admins (detailed info)
     #[Groups(['student:read:admin', 'student:write'])]
@@ -466,11 +466,6 @@ class ContactRequest
     #[Groups(['contact:write', 'contact:read'])]
     private ?string $message = null;
 
-    // GDPR consent (required for submission, visible to admins)
-    #[Groups(['contact:write'])]
-    #[Assert\IsTrue(message: 'GDPR consent is required')]
-    private ?bool $gdprConsent = false;
-
     // Status tracking (admin-only visibility and modification)
     #[Groups(['contact:read', 'contact:status'])]
     private ?string $status = 'new';
@@ -483,7 +478,6 @@ class ContactRequest
 
 **Why no public GET operations for contacts?**
 - **Privacy Protection**: Contact information contains personal data
-- **GDPR Compliance**: Minimize exposure of personal information
 - **Business Logic**: Only administrators need to see inquiries
 - **Security**: Prevent enumeration of contact requests
 
@@ -515,53 +509,6 @@ security: "is_granted('ROLE_ADMIN') or (object.isPublic() and object.getStartDat
 - `object`: The entity being accessed (for item operations)
 - `request`: Current HTTP request object
 - Custom variables through expression language providers
-
-## Data Validation and GDPR Compliance
-
-### GDPR Compliance Implementation
-```php
-class ContactRequest
-{
-    // Explicit consent validation
-    #[Assert\IsTrue(message: 'You must accept the privacy policy and GDPR terms')]
-    #[Groups(['contact:write'])]
-    private ?bool $gdprConsent = false;
-
-    // Required contact validation
-    #[Assert\NotBlank(groups: ['contact:write'])]
-    #[Assert\Email(groups: ['contact:write'])]
-    private ?string $email = null;
-
-    // Data retention tracking for GDPR compliance
-    #[ORM\Column]
-    private ?\DateTimeImmutable $dataRetentionDate = null;
-
-    // Automatic data retention calculation
-    #[ORM\PrePersist]
-    public function setDataRetention(): void
-    {
-        // Set data retention for 3 years as per GDPR Article 5
-        $this->dataRetentionDate = new \DateTimeImmutable('+3 years');
-    }
-
-    // Data subject rights implementation
-    public function anonymizePersonalData(): void
-    {
-        $this->firstName = 'ANONYMIZED';
-        $this->lastName = 'ANONYMIZED';
-        $this->email = 'anonymized@gdpr-deleted.com';
-        $this->phone = null;
-        $this->message = 'Personal data removed per GDPR request';
-    }
-}
-```
-
-**GDPR Requirements Implementation:**
-- **Consent**: Explicit checkbox that must be checked
-- **Data Minimization**: Only collect necessary information
-- **Retention Limits**: Automatically calculate deletion dates
-- **Right to Erasure**: Provide methods to anonymize data
-- **Transparency**: Clear privacy policy and data usage
 
 ## Best Practices for Access Control
 

@@ -2,8 +2,8 @@
 
 ## Backend (API)
 
-- [ ] Setup projet Symfony/Laravel avec API Platform
-- [ ] Configurer base de données et migrations
+- [x] Setup projet Symfony/Laravel avec API Platform
+- [x] Configurer base de données et migrations
 - [ ] Créer entités (User, Student, Project, Technology, ContactRequest)
 - [ ] Système d'authentification JWT pour admin
 - [ ] API endpoints publics (projets, étudiants, technologies, contact)

@@ -38,7 +38,7 @@
 - Filtrage dynamique (sans rechargement de page)
 - Recherche en temps réel
 - Lazy loading des images
-- URLs avec paramètres pour le SEO (`/projects?tech=react&year=2024`)
+- URLs avec paramètres pour le SEO (`/projects?tech=react&yearOfStudy=2`)
 - Breadcrumbs
 - Tri par date, popularité, alphabétique
 

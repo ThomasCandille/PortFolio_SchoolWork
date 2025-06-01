@@ -381,7 +381,7 @@ curl -X POST "http://localhost:8000/api/admin/projects" \
        "title": "New Portfolio Project",
        "shortDescription": "A brief description",
        "description": "Full project description",
-       "year": "2024",
+       "yearOfStudy": "2024",
        "status": "draft"
      }'
 

@@ -142,9 +142,9 @@ private ?array $images = [];
 #[ORM\Column(length: 255, nullable: true)]        // Optional main image
 private ?string $mainImage = null;
 
-// Academic year: Which year this project was created
-#[ORM\Column(length: 50)]                         // Year as string (e.g., "2024")
-private ?string $year = null;
+// Academic year: Which year of study this project was created
+#[ORM\Column(length: 50)]                         // Year of study as string (e.g., "3")
+private ?string $yearOfStudy = null;
 
 // Status: Publication status (draft, published, hidden)
 #[ORM\Column(length: 20, options: ['default' => 'draft'])]  // Default to draft
@@ -176,9 +176,9 @@ private ?string $name = null;
 #[Assert\Email]                          // Must be valid email
 private ?string $email = null;
 
-// Academic year: Which class/year the student is in
-#[ORM\Column(length: 50)]                // Year as string
-private ?string $year = null;
+// Academic year: Which year of study this project was created
+#[ORM\Column(length: 50)]                // Year of study as string (e.g., "3")
+private ?string $yearOfStudy = null;
 
 // Biography: Optional description of the student
 #[ORM\Column(type: Types::TEXT, nullable: true)]  // Long text, optional

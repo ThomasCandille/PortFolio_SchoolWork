@@ -43,6 +43,10 @@ security:
     - { path: ^/api/login, roles: PUBLIC_ACCESS }
     - { path: ^/api/register, roles: PUBLIC_ACCESS }
     - { path: ^/api/docs, roles: PUBLIC_ACCESS }
+    - { path: ^/api/projects, roles: PUBLIC_ACCESS }
+    - { path: ^/api/students, roles: PUBLIC_ACCESS }
+    - { path: ^/api/technologies, roles: PUBLIC_ACCESS }
+    - { path: ^/api/contact/admissions, roles: PUBLIC_ACCESS }
     - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
     # - { path: ^/admin, roles: ROLE_ADMIN }
     # - { path: ^/profile, roles: ROLE_USER }
