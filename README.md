@@ -6,7 +6,7 @@ Ce projet vise à créer un portfolio professionnel pour mettre en valeur les pr
 
 ## Membres du groupe
 
-- [Candille Thomas]
+- [Candille Thomas](https://github.com/ThomasCandille)
 - [Garnier Quentin](https://github.com/F1N3X)
 - [Letard Pierric]
 - [Moccand-J Michel (BOMBACLAAAT)](https://github.com/Kan-A-Pesh)
