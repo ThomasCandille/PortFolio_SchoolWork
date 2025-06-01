@@ -1,101 +1,22 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { Card, CardBody, Button } from "@/components/hero";
-import { toast } from "react-toastify";
-import { authUtils } from "@/lib/auth";
-import { apiClient } from "@/lib/api";
-import { User } from "@/lib/types/auth";
+import { Card, CardBody } from "@/components/hero";
+import { isAuthenticated } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import AdminNavigation from "./_components/admin-navigation";
+import LogoutButton from "./_components/logout-button";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+  // Check authentication server-side
+  const authenticated = await isAuthenticated();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      // Don't check auth on login page
-      if (pathname === "/admin/login") {
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if we have auth data
-      if (!authUtils.isAuthenticated()) {
-        router.push("/admin/login");
-        return;
-      }
-
-      try {
-        // Verify token is still valid
-        const currentUser = await apiClient.getCurrentUser();
-        setUser(currentUser);
-        setIsLoading(false);
-      } catch {
-        // Token is invalid, clear auth data and redirect
-        authUtils.clearAuth();
-        router.push("/admin/login");
-      }
-    };
-
-    checkAuth();
-  }, [pathname, router]);
-
-  const handleLogout = () => {
-    // Call logout API endpoint (optional, for server-side cleanup)
-    apiClient.logout().catch(() => {
-      // Ignore errors for logout API call
-    });
-
-    // Clear auth data
-    authUtils.clearAuth();
-
-    toast.success("Logged out successfully");
-
-    // Redirect to login
-    router.push("/admin/login");
-  };
-
-  // Show loading while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-default-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Render login page without admin layout
-  if (pathname === "/admin/login") {
-    return (
-      <>
-        {children}
-        <ToastContainer
-          position="bottom-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
-      </>
-    );
+  // If not authenticated, redirect
+  if (!authenticated) {
+    redirect("/login");
   }
 
   return (
@@ -113,23 +34,10 @@ export default function AdminLayout({
                   <p className="text-small text-default-600 mt-1">
                     Manage your portfolio content
                   </p>
-                  {user && (
-                    <p className="text-tiny text-default-500 mt-2">
-                      Welcome, {user.email}
-                    </p>
-                  )}
                 </div>
                 <AdminNavigation />
                 <div className="p-4 border-t border-divider">
-                  <Button
-                    color="danger"
-                    variant="light"
-                    size="sm"
-                    className="w-full"
-                    onClick={handleLogout}
-                  >
-                    Logout
-                  </Button>
+                  <LogoutButton />
                 </div>
               </CardBody>
             </Card>

@@ -6,10 +6,10 @@ Ce projet vise à créer un portfolio professionnel pour mettre en valeur les pr
 
 ## Membres du groupe
 
-- [Candille Thomas]
+- Candille Thomas
 - [Garnier Quentin](https://github.com/F1N3X)
-- [Letard Pierric]
-- [Moccand-J Michel (BOMBACLAAAT)](https://github.com/Kan-A-Pesh)
+- Letard Pierric
+- [Moccand-J Michel](https://github.com/Kan-A-Pesh)
 
 ## Technologies utilisées
 
@@ -59,33 +59,45 @@ Ce projet vise à créer un portfolio professionnel pour mettre en valeur les pr
      ```
      cp .env .env.local
      ```
-   - Modifier `.env.local` avec vos paramètres (voir section "Configuration")
+   - Modifier `.env.local` avec vos paramètres
 
    - Lancer le serveur :
      ```
      symfony serve
      ```
-     ou
-     ```
-     php -S localhost:8000 -t public
-     ```
 
 3. **Configurer le Frontend**
 
    - Installer les dépendances :
+
      ```
      cd front
      npm install
      ```
+
+   - Copier le fichier d'environnement :
+     ```
+     cp .env.example .env
+     ```
+   - Modifier `.env` avec vos paramètres
+
    - Lancer le serveur de développement :
      ```
-     npm start
+     npm run dev
      ```
 
 4. **Importer la base de données**
-   - Importer le fichier `data.sql` fourni :
+
+   - Lancer la commande de seeding :
+
      ```
-     mysql -u [user] -p [database] < data.sql
+     cd back
+
+     # Seed la DB avec des données de tests
+     php bin/console app:seed-test-data
+
+     # Créer un utilisateur admin (email: admin@portfolio.com, password: admin123)
+     php bin/console app:create-admin-user admin@portfolio.com admin123 Admin User
      ```
 
 ## Tests API
@@ -165,7 +177,3 @@ Les tests affichent :
 - 🟢 **Statut de chaque test** (✅ réussi / ❌ échoué)
 - 📊 **Résumé par suite** (nombre de tests passés/échoués)
 - 🎯 **Résultat global** (toutes les suites combinées)
-
-## Configuration
-
-Exemple de contenu pour `.env.local` (API Symfony) :

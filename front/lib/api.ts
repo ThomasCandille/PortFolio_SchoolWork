@@ -2,8 +2,8 @@ import { ApiResponse } from "./types/api";
 import { Project, ProjectFormData } from "./types/project";
 import { Student, StudentFormData } from "./types/student";
 import { Technology, TechnologyFormData } from "./types/technology";
-import { LoginData, AuthResponse, User } from "./types/auth";
-import { authUtils } from "./auth";
+import { LoginData, AuthResponse } from "./types/auth";
+import { getAuthToken } from "./auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -12,28 +12,30 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    // Get token from cookies for authenticated requests
-    const token = authUtils.getToken();
-
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
+      "Content-Type": "application/ld+json",
       ...(options.headers as Record<string, string>),
     };
 
-    // Add authorization header if token exists
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
+    // Automatically get auth token for authenticated requests
+    try {
+      const token = await getAuthToken();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      // Token retrieval failed, continue without auth header
+      // This allows unauthenticated requests to work
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      credentials: "include", // Include cookies in requests
     });
 
     // Handle authentication errors
     if (response.status === 401) {
-      // Clear auth data on 401 and throw specific error
-      authUtils.clearAuth();
       throw new Error("Authentication required");
     }
 
@@ -46,9 +48,12 @@ class ApiClient {
 
   // Authentication methods
   async login(data: LoginData): Promise<AuthResponse> {
-    return this.request<AuthResponse>("/api/auth/login", {
+    return this.request<AuthResponse>("/api/login_check", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        username: data.email,
+        password: data.password,
+      }),
     });
   }
 
@@ -58,11 +63,7 @@ class ApiClient {
     });
   }
 
-  async getCurrentUser(): Promise<User> {
-    return this.request<User>("/api/auth/me");
-  }
-
-  // Existing methods remain the same
+  // API methods - auth token handled automatically
   async getProjects(): Promise<ApiResponse<Project>> {
     return this.request<ApiResponse<Project>>("/api/projects");
   }

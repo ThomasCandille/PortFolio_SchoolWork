@@ -4,9 +4,9 @@ import StudentForm from "../../../_components/forms/student-form";
 import { notFound } from "next/navigation";
 
 interface EditStudentPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function EditStudentPage({
@@ -15,7 +15,8 @@ export default async function EditStudentPage({
   let student: Student;
 
   try {
-    student = await apiClient.getStudent(parseInt(params.id));
+    const { id } = await params;
+    student = await apiClient.getStudent(parseInt(id));
   } catch {
     notFound();
   }

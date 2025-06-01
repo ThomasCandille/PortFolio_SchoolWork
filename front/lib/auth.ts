@@ -1,68 +1,47 @@
-import Cookies from "js-cookie";
-import { User } from "./types/auth";
+"use server";
+
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 const TOKEN_KEY = "auth_token";
-const USER_KEY = "auth_user";
 
-export const authUtils = {
-  // Token management
-  setToken: (token: string): void => {
-    Cookies.set(TOKEN_KEY, token, {
-      expires: 7, // 7 days
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
-  },
+// Server actions for cookie manipulation (must be async)
+export async function setAuthToken(token: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(TOKEN_KEY, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+    path: "/",
+  });
+}
 
-  getToken: (): string | undefined => {
-    return Cookies.get(TOKEN_KEY);
-  },
+export async function clearAuthToken() {
+  const cookieStore = await cookies();
+  cookieStore.delete(TOKEN_KEY);
+}
 
-  removeToken: (): void => {
-    Cookies.remove(TOKEN_KEY);
-  },
+export async function logoutUser() {
+  await clearAuthToken();
+  redirect("/login");
+}
 
-  // User data management
-  setUser: (user: User): void => {
-    Cookies.set(USER_KEY, JSON.stringify(user), {
-      expires: 7,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
-  },
+// Read-only functions for checking auth status
+export async function getAuthToken(): Promise<string | undefined> {
+  const cookieStore = await cookies();
+  return cookieStore.get(TOKEN_KEY)?.value;
+}
 
-  getUser: (): User | null => {
-    const userData = Cookies.get(USER_KEY);
-    if (!userData) return null;
+export async function isAuthenticated(): Promise<boolean> {
+  const token = await getAuthToken();
+  return !!token;
+}
 
-    try {
-      return JSON.parse(userData) as User;
-    } catch {
-      return null;
-    }
-  },
-
-  removeUser: (): void => {
-    Cookies.remove(USER_KEY);
-  },
-
-  // Clear all auth data
-  clearAuth: (): void => {
-    authUtils.removeToken();
-    authUtils.removeUser();
-  },
-
-  // Check if user is authenticated
-  isAuthenticated: (): boolean => {
-    const token = authUtils.getToken();
-    const user = authUtils.getUser();
-    return !!(token && user);
-  },
-
-  // Check if user has admin role
-  isAdmin: (user?: User): boolean => {
-    const currentUser = user || authUtils.getUser();
-    if (!currentUser) return false;
-    return currentUser.roles?.includes("ROLE_ADMIN") || false;
-  },
-};
+// Redirect if not authenticated (for protected pages)
+export async function requireAuth() {
+  const authenticated = await isAuthenticated();
+  if (!authenticated) {
+    redirect("/login");
+  }
+}
