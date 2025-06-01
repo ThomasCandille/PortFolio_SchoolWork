@@ -1,12 +1,12 @@
-
-import FeaturedProject from '../component/FeaturedProject';
-import DisplayProject from '@/component/DisplayProject';
+import { useState } from "react";
 
 export default function Home() {
+
+  const [projects, setProjects] = useState<string[]>([]);
+
   return (
     <div>
-        <FeaturedProject />
-        <DisplayProject />
+
     </div>
   );
 }
