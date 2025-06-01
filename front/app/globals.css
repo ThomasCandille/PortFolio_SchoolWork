@@ -1,19 +1,39 @@
 @import "tailwindcss";
 
+@plugin "./hero.ts";
+@source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
   --background: #ffeaf1;
   --foreground: #5a3d5c;
   --accent: #f8a5c2;
   --secondary: #f0d1da;
-  --border: #e9b0c1;
+  --border: #383234;
 }
 
-@theme inline {
+@theme {
+  --color-primary-50: oklch(0.964 0.0195 357.7129);
+  --color-primary-100: oklch(0.9298 0.0376 357.0672);
+  --color-primary-200: oklch(0.8943 0.0577 356.4155);
+  --color-primary-300: oklch(0.8601 0.0754 357.6919);
+  --color-primary-400: oklch(0.8111 0.1039 357.1166);
+  --color-primary-500: oklch(0.7507 0.0945 356.9368);
+  --color-primary-600: oklch(0.6473 0.0794 356.9363);
+  --color-primary-700: oklch(0.5463 0.0635 356.8941);
+  --color-primary-800: oklch(0.4441 0.0464 356.8313);
+  --color-primary-900: oklch(0.3425 0.0309 356.0751);
+  --color-primary-950: oklch(0.2397 0.0165 358.6041);
+  --color-primary: oklch(0.7507 0.0945 356.9368);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);
   --color-secondary: var(--secondary);
+
   --color-border: var(--border);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
