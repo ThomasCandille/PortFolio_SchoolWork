@@ -13,7 +13,7 @@
 
 ## Frontend Public
 
-- [ ] Setup projet React/Vue/Next.js
+- [x] Setup projet React/Vue/Next.js
 - [ ] Page d'accueil avec présentation et projets phares
 - [ ] Liste des projets avec filtres et recherche
 - [ ] Page détail projet avec galerie et infos complètes

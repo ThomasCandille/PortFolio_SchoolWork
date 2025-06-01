@@ -130,7 +130,7 @@
 
 ---
 
-### `/admin/login` - Connexion administrateur
+### `/login` - Connexion administrateur
 
 **Description**: Page de connexion sécurisée
 **Contenu**:
